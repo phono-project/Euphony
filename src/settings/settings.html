@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Euphony · 设置</title>
+  <style>
+    :root { color-scheme: light; --bg:#f7f8f5; --surface:#fff; --ink:#1d302b; --muted:#63736c;
+      --line:#e2e8e3; --accent:#226e58; --soft:#eaf3ec; --danger:#a4342e; --radius:16px; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.65 "Segoe UI", "Microsoft YaHei UI", sans-serif; }
+    button, input, select { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:default; opacity:.5; }
+    input, select { color:var(--ink); background:#fff; border:1px solid #cbd7ce; border-radius:9px; padding:9px 11px; min-width:0; }
+    input:focus, select:focus { outline:2px solid #83b59e; outline-offset:2px; }
+    input:disabled, select:disabled { background:#f5f7f4; color:#87918c; }
+    input[type=number] { width:106px; font-variant-numeric:tabular-nums; }
+    input[type=text] { width:100%; }
+    button:focus-visible, a:focus-visible, summary:focus-visible { outline:2px solid #83b59e; outline-offset:4px; }
+    .layout { display:grid; grid-template-columns:205px minmax(0,1fr); min-height:100vh; }
+    aside { position:sticky; top:0; height:100vh; padding:31px 19px; border-right:1px solid var(--line); background:#f1f5ef; }
+    .brand { display:flex; align-items:center; gap:11px; margin:0 12px 5px; font-size:21px; letter-spacing:-.6px; font-weight:650; }
+    .mark { width:36px; height:36px; flex:none; }
+    .tagline { color:var(--muted); font-size:12px; margin:3px 12px 29px; }
+    nav { display:flex; flex-direction:column; gap:7px; }
+    nav a { color:var(--muted); text-decoration:none; padding:10px 13px; border-radius:9px; font-weight:600; }
+    nav a.active, nav a:hover { background:#e0ece1; color:var(--accent); }
+    .sidebar-note { position:absolute; bottom:27px; left:31px; right:29px; color:var(--muted); font-size:12px; }
+    .sidebar-note strong { display:block; color:var(--accent); font-weight:600; margin-bottom:4px; }
+    main { width:100%; max-width:1080px; padding:35px 42px 118px; }
+    header { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:23px; }
+    h1 { font-size:27px; line-height:1.3; font-weight:650; margin:0 0 7px; letter-spacing:-.5px; }
+    h2 { font-size:17px; line-height:1.4; font-weight:650; margin:0 0 5px; }
+    h3 { font-size:14px; margin:0 0 8px; font-weight:600; }
+    p { margin:0; }
+    .hint { color:var(--muted); font-size:12px; }
+    .lead { font-size:13px; color:var(--muted); }
+    .button { display:inline-flex; align-items:center; justify-content:center; background:#fff; color:var(--ink); border:1px solid #cdd8ce; border-radius:9px; padding:8px 14px; font-weight:600; white-space:nowrap; }
+    .button:hover:enabled { background:#f4f7f1; }
+    .button.primary { background:var(--accent); color:white; border-color:var(--accent); }
+    .button.primary:hover:enabled { background:#195b48; }
+    .button.small { padding:8px 12px; }
+    .overview { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px; }
+    .status-card { border:1px solid var(--line); background:#edf3ed; border-radius:12px; padding:14px 16px; }
+    .status-label { font-size:11px; letter-spacing:.8px; color:var(--muted); margin-bottom:5px; }
+    .status-value { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; }
+    .dot { display:inline-block; flex:none; width:7px; height:7px; border-radius:50%; background:#94a295; }
+    .dot.ready { background:#358461; }.dot.warning { background:#b48229; }.dot.error { background:#a4342e; }
+    .status-detail { color:var(--muted); font-size:11px; margin-top:5px; overflow-wrap:anywhere; }
+    section { scroll-margin-top:20px; margin-bottom:20px; border:1px solid var(--line); border-radius:var(--radius); padding:24px; background:var(--surface); }
+    .section-head { margin-bottom:20px; }
+    .row { display:flex; justify-content:space-between; gap:24px; align-items:center; padding:15px 0; border-top:1px solid #edf0eb; }
+    .row:first-of-type { border-top:0; padding-top:0; }
+    .row:last-child { padding-bottom:0; }
+    .row-label { flex:1; }
+    .row-label > label { display:block; font-weight:600; }
+    .row-label > p { color:var(--muted); font-size:12px; margin-top:3px; }
+    .row > select { max-width:180px; width:180px; }
+    .toggle { position:relative; display:inline-block; flex:none; width:42px; height:24px; }
+    .toggle input { appearance:none; width:42px; height:24px; margin:0; padding:0; cursor:pointer; border:0; border-radius:20px; background:#c4cec5; transition:background .15s; }
+    .toggle input:checked { background:var(--accent); }
+    .toggle input:disabled { cursor:default; opacity:.5; }
+    .toggle input::after { content:""; display:block; width:18px; height:18px; margin:3px; border-radius:50%; background:white; box-shadow:0 1px 3px #0002; transition:transform .15s; }
+    .toggle input:checked::after { transform:translateX(18px); }
+    .path-field { margin-bottom:17px; }
+    .path-field:last-child { margin-bottom:0; }
+    .path-field > label { display:block; font-weight:600; margin-bottom:7px; }
+    .path-input { display:flex; gap:8px; margin-bottom:5px; }
+    .path-input input { font-size:12px; }
+    .divider { border-top:1px solid #edf0eb; margin:21px 0; }
+    .notice { padding:11px 13px; background:#f4f7f0; border-radius:9px; color:#53614f; font-size:12px; margin-top:17px; }
+    .privacy { display:flex; align-items:flex-start; gap:10px; background:#edf5ee; color:#315c45; border-radius:11px; padding:13px 15px; font-size:12px; margin-bottom:17px; }
+    .privacy span { font-size:18px; line-height:1.4; }
+    details { border-top:1px solid #edf0eb; margin-top:17px; padding-top:15px; }
+    summary { cursor:pointer; font-weight:600; color:var(--accent); padding:2px 0; }
+    details[open] summary { margin-bottom:16px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .grid label { display:block; font-size:12px; font-weight:600; margin-bottom:5px; }
+    .grid input, .grid select { width:100%; }
+    .grid .hint { margin-top:4px; }
+    .alert { display:none; margin-bottom:20px; border:1px solid #ebc2b8; background:#fff1ec; color:#862b24; border-radius:11px; padding:13px 15px; font-size:12px; overflow-wrap:anywhere; }
+    .alert.visible { display:block; }
+    .alert strong { display:block; font-size:13px; margin-bottom:4px; }
+    .field-error { border-color:var(--danger); }
+    .field-message { color:var(--danger); font-size:11px; margin-top:5px; }
+    footer { position:fixed; bottom:0; left:205px; right:0; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:17px 42px; background:#f7f8f5f2; border-top:1px solid var(--line); backdrop-filter:blur(10px); }
+    .save-state { color:var(--muted); font-size:12px; }
+    .save-state.dirty { color:#916423; }.save-state.saved { color:var(--accent); }
+    .actions { display:flex; gap:9px; }
+    .storage { overflow-wrap:anywhere; font-size:11px; margin-top:9px; }
+    .required-note { color:#9f6b2c; font-size:11px; margin-top:5px; }
+    @media (max-width:820px) { .layout { grid-template-columns:165px minmax(0,1fr); } aside { padding:27px 13px; } .brand { font-size:18px; gap:8px; margin-left:6px; }.tagline{margin-left:6px;}main { padding:29px 22px 118px; } footer { left:165px; padding:16px 22px; } section { padding:20px; }.sidebar-note{left:20px;right:20px;} }
+    @media (max-width:620px) { .layout { display:block; }aside{display:none;} main{padding:24px 16px 118px;}footer{left:0;padding:14px 16px;} .row{gap:14px;}.row>select{width:135px;}section{padding:18px;}.grid{grid-template-columns:1fr;}.overview{gap:8px;}.status-card{padding:12px;} }
+    @media (prefers-reduced-motion:reduce) { * { transition:none !important; scroll-behavior:auto !important; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand"><svg class="mark" aria-hidden="true" viewBox="0 0 128 128"><rect x="8" y="8" width="112" height="112" rx="34" fill="#226e58"/><g fill="#edf7e8"><rect x="33" y="42" width="12" height="44" rx="6"/><rect x="58" y="27" width="12" height="74" rx="6"/><rect x="83" y="36" width="12" height="56" rx="6"/></g></svg>Euphony</div>
+      <p class="tagline">Windows 中文输入法</p>
+      <nav aria-label="设置分组">
+        <a href="#input" class="active">输入与候选</a>
+        <a href="#resources">模型与词库</a>
+        <a href="#privacy">上下文与隐私</a>
+        <a href="#advanced">高级设置</a>
+      </nav>
+      <p class="sidebar-note"><strong>在你的电脑上运行</strong>模型推理与词库学习均在本地完成。</p>
+    </aside>
+    <main>
+      <header>
+        <div><h1>设置</h1><p class="lead">调整输入习惯，专注于要表达的内容。</p></div>
+        <button type="button" id="refresh" class="button small">重新载入</button>
+      </header>
+      <div class="overview" aria-label="输入服务状态">
+        <div class="status-card">
+          <p class="status-label">PHONO 模型</p>
+          <div class="status-value"><span id="model-dot" class="dot"></span><span id="model-status">正在连接输入服务</span></div>
+          <p id="model-detail" class="status-detail">读取当前配置…</p>
+        </div>
+        <div class="status-card">
+          <p class="status-label">LIBIME 词库</p>
+          <div class="status-value"><span id="dictionary-dot" class="dot"></span><span id="dictionary-status">等待检查</span></div>
+          <p id="dictionary-detail" class="status-detail">本地词库与个人学习</p>
+        </div>
+      </div>
+      <div id="error" class="alert" role="alert"><strong id="error-title"></strong><p id="error-detail"></p></div>
+      <form id="settings" novalidate>
+        <fieldset id="fields" disabled style="border:0;padding:0;margin:0;min-width:0">
+          <section id="input">
+            <div class="section-head"><h2>输入与候选</h2><p class="hint">选择拼音方案和候选显示方式。</p></div>
+            <div class="row">
+              <div class="row-label"><label for="input-mode">输入方式</label><p>全拼直接输入拼音，双拼每个音节通常使用两个键。</p></div>
+              <select id="input-mode" data-key="input_mode"><option value="pinyin">全拼</option><option value="shuangpin">双拼</option></select>
+            </div>
+            <div class="row" id="scheme-row">
+              <div class="row-label"><label for="shuangpin-scheme">双拼方案</label><p>沿用 libime 的七种内置方案。</p></div>
+              <select id="shuangpin-scheme" data-key="shuangpin_scheme">
+                <option value="xiaohe">小鹤双拼</option><option value="ziranma">自然码</option>
+                <option value="ms">微软双拼</option><option value="ziguang">紫光双拼</option>
+                <option value="abc">智能 ABC</option><option value="zhongwenzhixing">中文之星</option><option value="pinyinjiajia">拼音加加</option>
+              </select>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="page-size">每页候选数</label><p>数字键 1–9 选择候选，第 10 项使用 0。</p></div>
+              <input id="page-size" data-key="page_size" type="number" min="3" max="10" step="1" value="5" required>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="candidate-layout">候选排列</label><p>横向并排显示，纵向每行显示一个候选。</p></div>
+              <select id="candidate-layout" data-key="candidate_layout"><option value="vertical">纵向</option><option value="horizontal">横向</option></select>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="model-candidate-color">模型候选颜色</label><p>模型候选使用此背景色，默认淡绿色。</p></div>
+              <input id="model-candidate-color" data-key="model_candidate_color" type="color" value="#dff2e5" aria-label="模型候选颜色">
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="invalid-input">无法识别的输入</label><p>保留时按原样提交；删除时在候选中划去无效片段。</p></div>
+              <select id="invalid-input" data-key="invalid_input"><option value="pass">原样保留</option><option value="delete">删除无效片段</option></select>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="learning">记住词库选择</label><p>根据你选择的词库候选调整排序。</p></div>
+              <label class="toggle"><input id="learning" data-key="learning" type="checkbox" aria-label="记住词库选择"><span></span></label>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="chinese-punctuation">中文标点</label><p>输入句号、逗号等标点时使用对应的中文形式。</p></div>
+              <label class="toggle"><input id="chinese-punctuation" data-key="chinese_punctuation" type="checkbox" aria-label="中文标点"><span></span></label>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="full-width">全角字符</label><p>将直接输入的 ASCII 字符转换为全角形式。</p></div>
+              <label class="toggle"><input id="full-width" data-key="full_width" type="checkbox" aria-label="全角字符"><span></span></label>
+            </div>
+          </section>
+          <section id="resources">
+            <div class="section-head"><h2>模型与词库</h2><p class="hint">Phono 生成上下文候选，libime 来源词库提供常用词。</p></div>
+            <div class="row">
+              <div class="row-label"><label for="model-enabled">启用 Phono 模型</label><p>关闭后使用本地词库候选。</p></div>
+              <label class="toggle"><input id="model-enabled" data-key="model_enabled" type="checkbox" aria-label="启用 Phono 模型"><span></span></label>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="prefer-unigram-single-syllable">无上下文单字优先词频</label><p>没有有效上下文且只输入一个完整音节时，优先使用 KenLM 一元词频；其余情况使用 Phono。KenLM 未就绪时回退到通常的候选生成。</p></div>
+              <label class="toggle"><input id="prefer-unigram-single-syllable" data-key="prefer_unigram_single_syllable" type="checkbox" aria-label="无上下文单字优先词频" checked><span></span></label>
+            </div>
+            <div class="divider"></div>
+            <div class="path-field">
+              <label for="model-directory">模型目录</label>
+              <div class="path-input"><input id="model-directory" data-key="model_directory" type="text" placeholder="选择 phonop2c_v2_2_base_w8a8_model 目录" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="model_directory">选择目录</button></div>
+              <p class="hint">选择包含模型配置、权重和词表的完整模型包目录。</p>
+            </div>
+            <div class="path-field">
+              <label for="core-library">phono-core 动态链接库</label>
+              <div class="path-input"><input id="core-library" data-key="core_library" type="text" placeholder="phono-core.dll" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="core_library">选择文件</button></div>
+              <p class="hint">输入服务动态加载此 DLL，其依赖需要随库一起部署。</p>
+            </div>
+            <div class="path-field">
+              <label for="dictionary-path">libime 来源词库</label>
+              <div class="path-input"><input id="dictionary-path" data-key="dictionary_path" type="text" placeholder="libime.tsv" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="dictionary_path">选择文件</button></div>
+              <p class="hint">使用随程序提供的词库文本（.tsv / .txt），个人学习单独保存。</p>
+            </div>
+            <div class="path-field">
+              <label for="language-model-path">libime KenLM 语言模型</label>
+              <div class="path-input"><input id="language-model-path" data-key="language_model_path" type="text" placeholder="zh_CN.lm" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="language_model_path">选择文件</button></div>
+              <p class="hint">推荐 libime 的 zh_CN.lm，也支持 ARPA 文本；提供无上下文单字的一元词频。</p>
+              <div class="status-value"><span id="language-model-dot" class="dot"></span><span id="language-model-status">等待检查 KenLM</span></div>
+              <p id="language-model-detail" class="status-detail">读取语言模型状态…</p>
+            </div>
+            <p class="notice">保存后输入服务会重新加载相关资源。加载失败时，具体原因会显示在这里。</p>
+          </section>
+          <section id="privacy">
+            <div class="section-head"><h2>上下文与隐私</h2><p class="hint">让候选理解光标前的文字，并控制使用范围。</p></div>
+            <div class="privacy"><span aria-hidden="true">⌂</span><p>文本只用于本地候选生成。应用未提供有效上下文时，使用当前输入上下文连续提交的历史。</p></div>
+            <div class="row">
+              <div class="row-label"><label for="use-surrounding">读取应用的光标前文本</label><p>关闭后仅使用当前输入上下文的提交历史。</p></div>
+              <label class="toggle"><input id="use-surrounding" data-key="use_surrounding" type="checkbox" aria-label="读取应用的光标前文本"><span></span></label>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="history-characters">最多使用的历史字符</label><p>0 表示不使用历史；最大 8192 个字符。</p></div>
+              <input id="history-characters" data-key="history_characters" type="number" min="0" max="8192" step="1" value="256" required>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="context-slots">上下文缓存槽位</label><p>更多槽位可复用多个输入上下文，也会增加内存占用。</p></div>
+              <input id="context-slots" data-key="context_slots" type="number" min="1" max="32" step="1" value="4" required>
+            </div>
+            <div class="notice"><strong>一个配置位置</strong><p>设置与个人词库位于同一个 Euphony 用户目录。</p><p id="user-directory" class="storage">%LOCALAPPDATA%\Euphony\config.json</p></div>
+          </section>
+          <section id="advanced">
+            <div class="section-head"><h2>高级设置</h2><p class="hint">通常保留默认值即可。上下文长度上限由模型推导。</p></div>
+            <div class="row">
+              <div class="row-label"><label for="lowercase-ascii">统一 ASCII 字母大小写</label><p>拼音匹配前把大写字母转为小写。</p></div>
+              <label class="toggle"><input id="lowercase-ascii" data-key="engine.tokenizer.normalization.lowercase_ascii" type="checkbox" aria-label="统一 ASCII 字母大小写"><span></span></label>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="normalize-v">规范 j / q / x / y 后的 v</label><p>将同一分隔片段中这些声母后的 v 转为 u。</p></div>
+              <label class="toggle"><input id="normalize-v" data-key="engine.tokenizer.normalization.normalize_v_to_u" type="checkbox" aria-label="规范 j q x y 后的 v"><span></span></label>
+            </div>
+            <div class="grid" style="margin-top:19px">
+              <div><label for="separators">音节分隔符</label><input id="separators" data-key="engine.tokenizer.normalization.separators" type="text" maxlength="32" value="'" spellcheck="false"><p class="hint">删除分隔符，并在该位置建立音节边界。</p></div>
+              <div><label for="max-pinyin-chars">最长拼音输入（字符）</label><input id="max-pinyin-chars" data-key="engine.tokenizer.max_pinyin_chars" type="number" min="1" max="4096" step="1" value="128" required><p class="hint">限制拼音分词的工作量。</p></div>
+            </div>
+            <details>
+              <summary>上下文窗口与缓存参数</summary>
+              <p class="hint" style="margin-bottom:15px">长度填 0、回收间隔填 −1，使用模型自动值。显式值仍需满足模型限制。</p>
+              <div class="grid">
+                <div><label for="max-context-length">上下文长度上限</label><input id="max-context-length" data-key="context.max_context_length" data-auto="0" type="number" min="0" max="8192" step="1" value="0" required></div>
+                <div><label for="max-history-length">历史 token 上限</label><input id="max-history-length" data-key="context.max_history_length" data-auto="0" type="number" min="0" max="8192" step="1" value="0" required></div>
+                <div><label for="max-pinyin-length">拼音音节上限</label><input id="max-pinyin-length" data-key="context.max_pinyin_length" data-auto="0" type="number" min="0" max="8192" step="1" value="0" required></div>
+                <div><label for="slack-interval">历史回收间隔</label><input id="slack-interval" data-key="context.slack_interval" data-auto="-1" type="number" min="-1" max="8192" step="1" value="-1" required></div>
+                <div><label for="min-accept-context">最短可复用上下文</label><input id="min-accept-context" data-key="context.min_accept_context" type="number" min="1" max="8192" step="1" value="8" required></div>
+                <div><label for="trial-ratio">缓存试探比例</label><input id="trial-ratio" data-key="context.trial_ratio" type="number" min="0.000000001" max="1" step="any" value="0.25" required></div>
+                <div><label for="decay-alpha">缓存使用衰减因子</label><input id="decay-alpha" data-key="context.decay_alpha" type="number" min="0" max="1000000000" step="any" value="0.5" required></div>
+                <div><label for="decay-lambda">缓存时间衰减因子</label><input id="decay-lambda" data-key="context.decay_lambda" type="number" min="0" max="1000000000" step="any" value="0.02" required></div>
+              </div>
+              <p class="notice">候选 beam 数由模型 batch 维度决定。双拼由前端提供音节序列，保存时会同步调整分词模型开关。</p>
+            </details>
+          </section>
+        </fieldset>
+      </form>
+    </main>
+  </div>
+  <footer>
+    <p id="save-state" class="save-state" aria-live="polite">正在读取设置…</p>
+    <div class="actions"><button id="revert" type="button" class="button" disabled>取消更改</button><button id="save" type="button" class="button primary" disabled>保存设置</button></div>
+  </footer>
+  <script>
+  (() => {
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const controls = [...document.querySelectorAll('[data-key]')];
+    const pending = new Map();
+    const native = window.chrome && window.chrome.webview;
+    let serial = 0, saved = null, busy = false, dirty = false;
+    const defaults = {
+      model_directory:'', core_library:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
+      shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', model_enabled:true, use_surrounding:true,
+      prefer_unigram_single_syllable:true,
+      history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
+      full_width:false, chinese_punctuation:true,
+      engine:{schema_version:'1.0', tokenizer:{use_segmenter:true, segment_mode:'safe', repair:false,
+        max_pinyin_chars:128, normalization:{lowercase_ascii:true, normalize_v_to_u:true, separators:"'"}}},
+      context:{schema_version:'1.0', min_accept_context:8, trial_ratio:0.25, decay_alpha:0.5, decay_lambda:0.02}
+    };
+    const clone = value => JSON.parse(JSON.stringify(value));
+    const read = (object, key) => key.split('.').reduce((value, part) => value == null ? undefined : value[part], object);
+    function write(object, key, value) {
+      const parts = key.split('.');
+      const last = parts.pop();
+      let parent = object;
+      parts.forEach(part => { if (!parent[part] || typeof parent[part] !== 'object') parent[part] = {}; parent = parent[part]; });
+      if (value === undefined) delete parent[last]; else parent[last] = value;
+    }
+    function showError(title, detail) {
+      $('error-title').textContent = title;
+      $('error-detail').textContent = detail || '输入服务未提供详细原因，请重新载入。';
+      $('error').classList.add('visible');
+    }
+    function clearError() { $('error').classList.remove('visible'); }
+    function setState(text, style = '') {
+      $('save-state').textContent = text;
+      $('save-state').className = 'save-state' + (style ? ' ' + style : '');
+    }
+    function setBusy(value) {
+      busy = value;
+      $('fields').disabled = busy || !saved;
+      $('refresh').disabled = busy;
+      $('save').disabled = busy || !saved || !dirty;
+      $('revert').disabled = busy || !saved || !dirty;
+      $('save').textContent = busy ? '正在处理…' : '保存设置';
+      updateScheme();
+    }
+    function updateScheme() {
+      const shuangpin = $('input-mode').value === 'shuangpin';
+      $('shuangpin-scheme').disabled = busy || !saved || !shuangpin;
+      $('scheme-row').style.opacity = shuangpin ? '1' : '.65';
+    }
+    function clearValidation() {
+      controls.forEach(control => { control.classList.remove('field-error'); control.removeAttribute('aria-invalid'); });
+      document.querySelectorAll('.field-message').forEach(message => message.remove());
+    }
+    function loadForm(config) {
+      clearValidation();
+      controls.forEach(control => {
+        let value = read(config, control.dataset.key);
+        if (value === undefined) value = control.dataset.auto !== undefined ? Number(control.dataset.auto) : read(defaults, control.dataset.key);
+        if (control.type === 'checkbox') control.checked = value === true;
+        else control.value = value === undefined ? '' : String(value);
+      });
+      const root = config.user_directory || '%LOCALAPPDATA%\\Euphony';
+      $('user-directory').textContent = root.replace(/[\\/]$/, '') + '\\config.json';
+      dirty = false;
+      setBusy(false);
+      setState('所有更改已保存');
+    }
+    function collect() {
+      const config = clone(saved || defaults);
+      controls.forEach(control => {
+        let value = control.type === 'checkbox' ? control.checked : control.type === 'number' ? Number(control.value) : control.value;
+        if (control.dataset.auto !== undefined && value === Number(control.dataset.auto)) value = undefined;
+        write(config, control.dataset.key, value);
+      });
+      config.engine.schema_version = '1.0';
+      config.engine.tokenizer.use_segmenter = config.input_mode !== 'shuangpin';
+      config.engine.tokenizer.segment_mode = 'safe';
+      config.engine.tokenizer.repair = false;
+      config.context.schema_version = '1.0';
+      return config;
+    }
+    function validate() {
+      clearValidation();
+      let first = null;
+      controls.forEach(control => {
+        if (control.disabled || control.type !== 'number') return;
+        const value = Number(control.value);
+        const integer = control.step !== 'any';
+        const valid = control.value.trim() !== '' && Number.isFinite(value) &&
+          (!integer || Number.isInteger(value)) && value >= Number(control.min) && value <= Number(control.max);
+        if (!valid) {
+          control.classList.add('field-error'); control.setAttribute('aria-invalid', 'true');
+          const message = document.createElement('p'); message.className = 'field-message';
+          message.textContent = `请输入 ${control.min} 到 ${control.max} 之间的${integer ? '整数' : '数值'}。`;
+          control.insertAdjacentElement('afterend', message);
+          if (!first) first = control;
+        }
+      });
+      if (first) {
+        const details = first.closest('details'); if (details) details.open = true;
+        first.focus(); first.scrollIntoView({block:'center'});
+        showError('请检查设置值', '标红的字段需要有效数值，设置尚未保存。');
+        return false;
+      }
+      const config = collect(), context = config.context;
+      if (context.max_context_length && context.max_history_length && context.max_pinyin_length &&
+          context.max_history_length >= context.max_context_length - context.max_pinyin_length) {
+        showError('上下文窗口大小不匹配', '历史 token 上限必须小于“上下文长度上限 − 拼音音节上限”。可填 0 使用模型自动值。');
+        return false;
+      }
+      if (context.max_history_length && context.slack_interval !== undefined &&
+          context.slack_interval >= context.max_history_length) {
+        showError('历史回收间隔过大', '回收间隔必须小于历史 token 上限。可填 −1 使用自动值。');
+        return false;
+      }
+      return true;
+    }
+    function changed() {
+      if (!saved || busy) return;
+      dirty = JSON.stringify(collect()) !== JSON.stringify(saved);
+      setState(dirty ? '有尚未保存的更改' : '所有更改已保存', dirty ? 'dirty' : '');
+      $('save').disabled = !dirty;
+      $('revert').disabled = !dirty;
+      updateScheme();
+    }
+    function request(op, extra = {}) {
+      if (!native) return Promise.reject(new Error('此页面需要在 Euphony 设置窗口中打开。'));
+      const id = ++serial;
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error('输入服务响应超时。请稍后重新载入；正在进行的资源加载可能仍会完成。'));
+        }, 30000);
+        pending.set(id, {resolve, reject, timeout});
+        native.postMessage({id, op, ...extra});
+      });
+    }
+    function showStatus(config, status = {}) {
+      const modelReady = status.model_ready === true;
+      const dictionaryReady = status.dictionary_ready === true;
+      const languageModelReady = status.language_model_ready === true;
+      const modelError = status.model_error || '';
+      const dictionaryError = status.dictionary_error || '';
+      const languageModelError = status.language_model_error || '';
+      const configError = status.config_error || '';
+      $('model-dot').className = 'dot ' + (!config.model_enabled ? '' : modelReady ? 'ready' : modelError ? 'error' : 'warning');
+      $('model-status').textContent = !config.model_enabled ? '已关闭 · 使用词库候选' : modelReady ? '模型已就绪' : modelError ? '模型加载失败' : '模型尚未加载';
+      $('model-detail').textContent = modelError || (config.model_directory ? config.model_directory.split(/[\\/]/).filter(Boolean).pop() : '尚未选择模型目录');
+      $('dictionary-dot').className = 'dot ' + (dictionaryReady ? 'ready' : dictionaryError ? 'error' : 'warning');
+      $('dictionary-status').textContent = dictionaryReady ? '词库已就绪' : dictionaryError ? '词库加载失败' : '词库尚未就绪';
+      $('dictionary-detail').textContent = dictionaryError || (config.dictionary_path ? config.dictionary_path.split(/[\\/]/).pop() : '尚未选择系统词库');
+      $('language-model-dot').className = 'dot ' + (languageModelReady ? 'ready' : languageModelError ? 'error' : config.language_model_path ? 'warning' : '');
+      $('language-model-status').textContent = languageModelReady ? 'KenLM 已就绪' : !config.language_model_path ? '未配置 KenLM' : languageModelError ? 'KenLM 加载失败' : 'KenLM 尚未就绪';
+      $('language-model-detail').textContent = languageModelError || (config.language_model_path ? config.language_model_path.split(/[\\/]/).pop() : '无上下文单字将使用通常的候选生成。');
+      if (configError || modelError || dictionaryError || languageModelError) showError(configError ? '配置文件需要处理' : '资源加载需要处理', [configError, modelError, dictionaryError, languageModelError].filter(Boolean).join('；'));
+    }
+    async function reload() {
+      if (busy) return;
+      clearError(); setBusy(true); setState('正在读取配置与服务状态…');
+      try {
+        const result = await request('get_config');
+        if (!result.ok || !result.config) throw new Error(result.error || '输入服务没有返回有效配置。');
+        saved = clone(result.config);
+        loadForm(saved); showStatus(saved, result.status);
+      } catch (error) {
+        setBusy(false); setState(saved ? '配置未重新载入' : '尚未连接输入服务');
+        showError('无法读取设置', error.message);
+        if (!saved) { $('model-status').textContent = '输入服务尚未连接'; $('model-dot').className = 'dot error'; }
+      }
+    }
+    async function save() {
+      if (busy || !saved || !dirty || !validate()) return;
+      const config = collect();
+      // ConfigStore uses JSON Merge Patch; null removes a previously explicit override.
+      ['max_context_length', 'max_history_length', 'max_pinyin_length', 'slack_interval'].forEach(key => {
+        if (config.context[key] === undefined && saved.context && saved.context[key] !== undefined) config.context[key] = null;
+      });
+      clearError(); setBusy(true); setState('正在保存并重新加载输入服务…');
+      try {
+        const result = await request('set_config', {config});
+        if (!result.ok) throw new Error(result.error || '输入服务拒绝了此配置。');
+        saved = clone(result.config || config);
+        loadForm(saved); setBusy(true);
+        let status = result.status;
+        if (!status) {
+          try {
+            const refreshed = await request('get_config');
+            if (refreshed.ok) status = refreshed.status;
+            else showError('设置已保存，状态检查失败', refreshed.error);
+          } catch (error) { showError('设置已保存，状态检查失败', error.message); }
+        }
+        setBusy(false); setState('设置已保存', 'saved');
+        showStatus(saved, status || {});
+      } catch (error) {
+        setBusy(false); changed(); showError('保存未完成', error.message);
+      }
+    }
+    controls.forEach(control => {
+      control.addEventListener('input', changed);
+      control.addEventListener('change', changed);
+    });
+    document.querySelectorAll('[data-pick]').forEach(button => button.addEventListener('click', async () => {
+      if (busy || !saved) return;
+      const field = button.dataset.pick;
+      const control = controls.find(item => item.dataset.key === field);
+      button.disabled = true;
+      try {
+        const result = await request('pick_path', {field, current:control.value});
+        if (!result.ok) throw new Error(result.error || '无法选择路径。');
+        if (!result.cancelled && result.path) { control.value = result.path; changed(); }
+      } catch (error) { showError('无法选择路径', error.message); }
+      finally { button.disabled = false; }
+    }));
+    $('settings').addEventListener('submit', event => { event.preventDefault(); save(); });
+    $('save').addEventListener('click', save);
+    $('refresh').addEventListener('click', reload);
+    $('revert').addEventListener('click', () => { if (saved && !busy) { clearError(); loadForm(saved); } });
+    document.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); }
+    });
+    document.querySelectorAll('nav a').forEach(link => link.addEventListener('click', event => {
+      event.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start'});
+      document.querySelectorAll('nav a').forEach(item => item.classList.toggle('active', item === link));
+    }));
+    if (native) native.addEventListener('message', event => {
+      const message = event.data;
+      if (!message || typeof message !== 'object') return;
+      if (message.op === 'error') { showError('设置请求出错', message.result && message.result.error); return; }
+      const waiting = pending.get(message.id);
+      if (!waiting) return;
+      clearTimeout(waiting.timeout); pending.delete(message.id); waiting.resolve(message.result || {ok:false, error:'输入服务响应无效。'});
+    });
+    reload();
+  })();
+  </script>
+</body>
+</html>

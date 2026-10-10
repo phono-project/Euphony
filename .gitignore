@@ -1,0 +1,7 @@
+.pixi/
+build*/
+dist/
+.deps/
+__pycache__/
+*.user
+data/zh_CN.lm

@@ -1,0 +1,24 @@
+[workspace]
+name = "euphony"
+version = "0.2.0"
+description = "Windows TSF Chinese input method powered by phono-core"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[dependencies]
+python = ">=3.12,<3.14"
+cmake = ">=3.30,<5"
+ninja = ">=1.12,<2"
+nlohmann_json = ">=3.11,<4"
+zstandard = ">=0.23,<1"
+
+[tasks]
+setup = "python tools/setup.py"
+build = { cmd = "python tools/workflow.py build", depends-on = ["setup"] }
+test = { cmd = "python tools/workflow.py test", depends-on = ["build"] }
+package = { cmd = "python tools/workflow.py package", depends-on = ["build"] }
+verify = { cmd = "python tools/workflow.py verify", depends-on = ["package"] }
+settings = "powershell -NoProfile -ExecutionPolicy Bypass -File tools/manage.ps1 Settings"
+broker = "powershell -NoProfile -ExecutionPolicy Bypass -File tools/manage.ps1 Start"
+status = "powershell -NoProfile -ExecutionPolicy Bypass -File tools/manage.ps1 Status"
+clean = "powershell -NoProfile -ExecutionPolicy Bypass -File tools/clean.ps1"

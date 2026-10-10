@@ -1,0 +1,25 @@
+#include "common/resource.h"
+IDI_EUPHONY ICON "euphony.ico"
+IDI_CHINESE ICON "mode-chinese.ico"
+IDI_ENGLISH ICON "mode-english.ico"
+
+1 VERSIONINFO
+FILEVERSION 0,2,0,0
+PRODUCTVERSION 0,2,0,0
+FILETYPE 0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "Euphony"
+            VALUE "FileVersion", EUPHONY_VERSION
+            VALUE "ProductName", "Euphony"
+            VALUE "ProductVersion", EUPHONY_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

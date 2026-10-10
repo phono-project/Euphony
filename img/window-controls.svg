@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="138" height="42" viewBox="0 0 138 42">
+  <title>Euphony window controls: minimize, maximize, close</title>
+  <g fill="none" stroke="#1d302b" stroke-width="1.5">
+    <path d="M17 21h12"/>
+    <rect x="63" y="15" width="12" height="12"/>
+    <path d="m109 15 12 12m0-12-12 12"/>
+  </g>
+</svg>
