@@ -5,6 +5,8 @@ import json
 import os
 import shutil
 import subprocess
+from version import PACKAGE
+from download_core import SDK
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,9 +36,10 @@ def main():
     parser.add_argument("action", choices=["configure", "build", "test", "package"])
     parser.add_argument("--arch", choices=["x64", "x86"], default="x64")
     parser.add_argument("--target", default=None)
+    parser.add_argument("--core-sdk", type=Path, default=os.environ.get("PHONO_CORE_SDK_DIR", SDK))
     parser.add_argument("--build-dir", type=Path, default=None,
         help="Use a separate build directory when an installed development DLL is in use")
-    parser.add_argument("--install-dir", type=Path, default=ROOT / "dist/Euphony-0.2.0",
+    parser.add_argument("--install-dir", type=Path, default=PACKAGE,
         help="Package into a new directory when the previous TSF DLL is still loaded by applications")
     args = parser.parse_args()
     build = args.build_dir.resolve() if args.build_dir else ROOT / "build" / args.arch
@@ -44,14 +47,13 @@ def main():
     def run(command):
         subprocess.run(command, cwd=ROOT, env=env, check=True)
     if args.action == "configure":
-        run(["cmake", "-S", str(ROOT), "-B", str(build), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", f"-DEUPHONY_TSF_ONLY={'ON' if args.arch == 'x86' else 'OFF'}"])
+        run(["cmake", "-S", str(ROOT), "-B", str(build), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", f"-DEUPHONY_TSF_ONLY={'ON' if args.arch == 'x86' else 'OFF'}", f"-DPHONO_CORE_SDK_DIR={args.core_sdk.resolve()}"])
     elif args.action == "build":
         command = ["cmake", "--build", str(build), "--parallel", "4"]
         if args.target:
             command += ["--target", args.target]
         run(command)
     elif args.action == "test":
-        env["PHONO_TEST_MODEL_DIR"] = str(ROOT.parent / "phonop2c_v2_2_base_w8a8_model")
         # Both TSF architectures use the same x64 inference broker, without
         # installing registry entries just to run an isolated integration test.
         env["EUPHONY_BROKER_PATH"] = os.environ.get("EUPHONY_BROKER_PATH", str(

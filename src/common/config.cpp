@@ -20,13 +20,6 @@ nlohmann::json default_config() {
     const auto bin = module_directory();
     std::filesystem::path core = bin / L"phono_core.dll";
     std::filesystem::path model;
-#ifdef EUPHONY_COLLECTION_DIR
-    const auto collection = std::filesystem::path(wide(EUPHONY_COLLECTION_DIR));
-    if (!std::filesystem::exists(core) && std::filesystem::exists(collection / L"phono-core/results/phono_core.dll"))
-        core = collection / L"phono-core/results/phono_core.dll";
-    if (std::filesystem::exists(collection / L"phonop2c_v2_2_base_w8a8_model/config.json"))
-        model = collection / L"phonop2c_v2_2_base_w8a8_model";
-#endif
     return {{"schema_version", 1}, {"model_directory", path_string(model)}, {"core_library", path_string(core)},
         {"dictionary_path", path_string(bin / L"data/libime.tsv")}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
         {"prefer_unigram_single_syllable", true}, {"input_mode", "pinyin"}, {"shuangpin_scheme", "xiaohe"},

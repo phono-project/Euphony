@@ -1,0 +1,27 @@
+{
+  "core": {
+    "repository": "phono-project/phono-core",
+    "version": "0.1.1",
+    "asset": "phono-core-sdk-0.1.1-windows-x64.zip",
+    "checksums": "SHA256SUMS-windows-x64.txt"
+  },
+  "webview2": {
+    "version": "1.0.4191.47",
+    "url": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.4191.47/microsoft.web.webview2.1.0.4191.47.nupkg",
+    "sha256": "f492bbf547d0da329553b6727435b677579b1e9f91cc9e4a1ad029366d5f23d0"
+  },
+  "dictionary": {
+    "version": "20260703",
+    "url": "https://download.fcitx-im.org/data/dict-20260703.tar.zst",
+    "sha256": "c686cab6df8964c48d596f57d205bac31fc72870b06a83017e44503df8c09697"
+  },
+  "language_model": {
+    "version": "20260629",
+    "url": "https://download.fcitx-im.org/data/lm_sc.arpa-20260629.tar.zst",
+    "sha256": "06808333b9173e5374cf2cb5afc12d08f5625bf9abb536489cac376fc05f2e7f"
+  },
+  "model": {
+    "repository": "afirelily/phonop2c_v2_2_base_w8a8_model",
+    "revision": "cf11a953a62fbba10f0eb585bc65802e01b70f7d"
+  }
+}

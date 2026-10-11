@@ -1,4 +1,4 @@
-"""Exercise the real broker, IPC, libime dictionary and W8A8 DLL in an isolated profile."""
+"""Exercise broker IPC and dictionary fallback; optionally require real inference."""
 from pathlib import Path
 import argparse
 import ctypes as C
@@ -11,6 +11,7 @@ import time
 import uuid
 import shutil
 import sys
+from version import PACKAGE
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -82,9 +83,14 @@ def call(pipe_name, request):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bin-dir", type=Path, default=ROOT / "dist/Euphony-0.2.0",
+    parser.add_argument("--bin-dir", type=Path, default=PACKAGE,
         help="Directory containing the built or packaged Euphony executables")
+    parser.add_argument("--no-model", action="store_true", help="Check isolated IPC and dictionary fallback only")
+    parser.add_argument("--model-dir", type=Path, default=os.environ.get("PHONO_TEST_MODEL_DIR"),
+        help="Explicit downloaded Phono model directory; required unless --no-model")
     args = parser.parse_args()
+    if not args.no_model and (not args.model_dir or not (args.model_dir / "config.json").is_file()):
+        raise SystemExit("A model with config.json is required; pass --model-dir or PHONO_TEST_MODEL_DIR.")
     bin_dir = args.bin_dir.resolve()
     broker = bin_dir / "EuphonyBroker.exe"
     core = bin_dir / "phono_core.dll"
@@ -96,6 +102,7 @@ def main():
     pipe = rf"\\.\pipe\Euphony-v1-{user_sid()}-{desktop.value}-{instance}"
     profile = ROOT / "build/test-results/temporary-smoke" / instance
     profile.mkdir(parents=True)
+    (profile / "config.json").write_text('{"model_enabled":false}', encoding="utf-8")
     env = {**os.environ, "EUPHONY_INSTANCE": instance, "EUPHONY_USER_DIR": str(profile)}
     process = subprocess.Popen([str(broker)], env=env, creationflags=0x08000000)
     seq = 0
@@ -165,9 +172,16 @@ def main():
         assert not bad["ok"], "Invalid configuration accepted"
         good = call(pipe, {"op": "get_config"})
         assert good["config"]["page_size"] == 5, "Rejected configuration changed state"
+        if args.no_model:
+            call(pipe, {"op": "shutdown"})
+            process.wait(timeout=10)
+            assert process.returncode == 0
+            print(json.dumps({"ipc": "passed", "dictionary_fallback": "passed", "session_isolation": "passed",
+                "config_validation": "passed", "bin_directory": str(bin_dir)}, indent=2))
+            return
         configured = call(pipe, {"op": "set_config", "config": {
             "model_enabled": True,
-            "model_directory": str(ROOT.parent / "phonop2c_v2_2_base_w8a8_model"),
+            "model_directory": str(args.model_dir.resolve()),
             "core_library": str(core)}})
         assert configured["ok"], configured
         def await_models(session):
