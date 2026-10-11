@@ -5,9 +5,13 @@ import zipfile
 import os
 import shutil
 import subprocess
+import hashlib
+import json
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-WEBVIEW_VERSION = "1.0.4191.47"
+DEPENDENCIES = json.loads((ROOT / "dependencies.json").read_text(encoding="utf-8"))
+WEBVIEW = DEPENDENCIES["webview2"]
 
 def setup_kenlm():
     installed = ROOT / ".deps/vcpkg-installed"
@@ -29,16 +33,21 @@ def setup_kenlm():
 
 def main():
     target = ROOT / ".deps" / "webview2"
+    target.mkdir(parents=True, exist_ok=True)
+    package = target / "webview2.nupkg"
+    if not package.is_file():
+        print(f"Downloading Microsoft WebView2 SDK {WEBVIEW['version']}", flush=True)
+        urllib.request.urlretrieve(WEBVIEW["url"], package)
+    with package.open("rb") as stream:
+        actual = hashlib.file_digest(stream, "sha256").hexdigest()
+    if actual != WEBVIEW["sha256"]:
+        raise SystemExit("WebView2 SDK checksum mismatch; remove the cached package and retry.")
     if not (target / "build/native/include/WebView2.h").exists():
-        target.mkdir(parents=True, exist_ok=True)
-        package = target / "webview2.nupkg"
-        url = f"https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/{WEBVIEW_VERSION}/microsoft.web.webview2.{WEBVIEW_VERSION}.nupkg"
-        print(f"Downloading Microsoft WebView2 SDK {WEBVIEW_VERSION}", flush=True)
-        urllib.request.urlretrieve(url, package)
         with zipfile.ZipFile(package) as archive:
             archive.extractall(target)
     print("WebView2 SDK ready. Build tools and JSON are managed by pixi.")
     setup_kenlm()
+    subprocess.run([sys.executable, str(ROOT / "tools/import_libime.py"), "--download", "--output", str(ROOT / "data/libime.tsv")], check=True)
     from prepare_libime_lm import main as prepare_language_model
     prepare_language_model()
 

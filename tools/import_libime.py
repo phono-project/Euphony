@@ -12,9 +12,12 @@ import math
 import re
 import tarfile
 import urllib.request
+import hashlib
 from pathlib import Path
 
-URL = "https://download.fcitx-im.org/data/dict-20260703.tar.zst"
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = json.loads((ROOT / "dependencies.json").read_text(encoding="utf-8"))["dictionary"]
+URL = SOURCE["url"]
 FIELD = re.compile(r'"(?:[^"\\]|\\.)*"|\S+')
 
 
@@ -23,8 +26,13 @@ def source_lines(args):
         if not args.source:
             raise SystemExit("Specify a libime text export or --download")
         return Path(args.source).read_text(encoding="utf-8").splitlines()
-    with urllib.request.urlopen(URL, timeout=120) as response:
-        archive = response.read()
+    cached = ROOT / ".deps" / ("dict-" + SOURCE["version"] + ".tar.zst")
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    if not cached.is_file():
+        urllib.request.urlretrieve(URL, cached)
+    archive = cached.read_bytes()
+    if hashlib.sha256(archive).hexdigest() != SOURCE["sha256"]:
+        raise SystemExit("Dictionary source checksum mismatch")
     try:
         from compression import zstd
         unpacked = zstd.decompress(archive)
@@ -63,7 +71,7 @@ def main():
         entries[key] = max(entries.get(key, -math.inf), weight)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8", newline="\n") as output:
-        output.write("# Euphony dictionary: libime dict-20260703, dictionary data under LGPL-2.1-or-later.\n")
+        output.write(f"# Euphony dictionary: libime dict-{SOURCE['version']}, dictionary data under LGPL-2.1-or-later.\n")
         output.write("# Source: " + URL + "\n")
         for (pinyin, text), weight in sorted(entries.items()):
             if any(c.isspace() or c in '\\"' for c in text):
