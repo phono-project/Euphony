@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param([string]$InstallDirectory, [string]$X86DllPath)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'version.ps1')
 . (Join-Path $PSScriptRoot 'native_registration.ps1')
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 try {
@@ -16,7 +17,7 @@ try {
     if (-not $X86DllPath -and $key) { $X86DllPath = $key.GetValue('X86DllPath') }
     if (-not $InstallDirectory) {
         $InstallDirectory = Split-Path $PSScriptRoot -Parent
-        if (-not (Test-Path -LiteralPath (Join-Path $InstallDirectory 'EuphonyTsf.dll'))) { $InstallDirectory = Join-Path $InstallDirectory 'dist/Euphony-0.2.0' }
+        if (-not (Test-Path -LiteralPath (Join-Path $InstallDirectory 'EuphonyTsf.dll'))) { $InstallDirectory = $EuphonyPackageDirectory }
     }
     $InstallDirectory = (Resolve-Path -LiteralPath $InstallDirectory).Path
     $nativeDll = Join-Path $InstallDirectory 'EuphonyTsf.dll'

@@ -4,6 +4,7 @@ param(
     [string]$X86DllPath
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'version.ps1')
 . (Join-Path $PSScriptRoot 'native_registration.ps1')
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 try {
@@ -16,7 +17,7 @@ if (-not [Environment]::Is64BitOperatingSystem) { throw 'This installation requi
 if (-not $InstallDirectory) {
     $InstallDirectory = Split-Path $PSScriptRoot -Parent
     if (-not (Test-Path -LiteralPath (Join-Path $InstallDirectory 'EuphonyTsf.dll'))) {
-        $InstallDirectory = Join-Path $InstallDirectory 'dist/Euphony-0.2.0'
+        $InstallDirectory = $EuphonyPackageDirectory
     }
 }
 $InstallDirectory = (Resolve-Path -LiteralPath $InstallDirectory).Path

@@ -4,6 +4,7 @@ param(
     [string]$InstallDirectory
 )
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'version.ps1')
 if ($env:EUPHONY_INSTANCE -or $env:EUPHONY_USER_DIR -or $env:EUPHONY_BROKER_PATH) {
     throw 'Clear EUPHONY_INSTANCE, EUPHONY_USER_DIR and EUPHONY_BROKER_PATH before managing the daily installation.'
 }
@@ -14,9 +15,9 @@ $installed=if ($record) { $record.GetValue('InstallDir') }
 if ($record) { $record.Dispose() }
 if (-not $InstallDirectory) {
     if ($packaged) { $InstallDirectory=$base }
-    elseif ($Action -eq 'Install') { $InstallDirectory=Join-Path $base 'dist/Euphony-0.2.0' }
+    elseif ($Action -eq 'Install') { $InstallDirectory=$EuphonyPackageDirectory }
     elseif ($installed) { $InstallDirectory=$installed }
-    else { $InstallDirectory=Join-Path $base 'dist/Euphony-0.2.0' }
+    else { $InstallDirectory=$EuphonyPackageDirectory }
 }
 $InstallDirectory=[IO.Path]::GetFullPath($InstallDirectory)
 function Test-Release {
@@ -24,7 +25,7 @@ function Test-Release {
         $file=Join-Path $InstallDirectory $name
         if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Incomplete package: $file" }
         $version=[Diagnostics.FileVersionInfo]::GetVersionInfo($file).FileVersion
-        if ($version -ne '0.2.0') { throw "Mixed or outdated package: $name version '$version'; this manager requires 0.2.0. Use the complete current release." }
+        if ($version -ne $EuphonyVersion) { throw "Mixed or outdated package: $name version '$version'; expected $EuphonyVersion. Use the complete current release." }
     }
 }
 Add-Type -TypeDefinition @'
@@ -187,7 +188,7 @@ switch ($Action) {
         $reply=Invoke-Broker 'get_config'
         $brokerFile=Join-Path $InstallDirectory 'EuphonyBroker.exe'
         $runningFile=if ($reply) { (Get-Process -Id $reply.pid -ErrorAction Stop).Path }
-        if (-not $reply -or $reply.value.status.app_version -ne '0.2.0' -or $runningFile -ne $brokerFile) { Start-CurrentBroker }
+        if (-not $reply -or $reply.value.status.app_version -ne $EuphonyVersion -or $runningFile -ne $brokerFile) { Start-CurrentBroker }
         $file=Join-Path $InstallDirectory 'EuphonySettings.exe'
         if (-not (Test-Path -LiteralPath $file)) { throw "Package missing: $file" }
         Start-Process -FilePath $file -WorkingDirectory $InstallDirectory

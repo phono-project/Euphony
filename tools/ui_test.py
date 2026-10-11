@@ -8,12 +8,13 @@ import time
 import uuid
 import shutil
 from smoke import call, user_sid, k, W, C
+from version import PACKAGE
 
 ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bin-dir", type=Path, default=ROOT / "dist/Euphony-0.2.0")
+    parser.add_argument("--bin-dir", type=Path, default=PACKAGE)
     args = parser.parse_args()
     bin_dir = args.bin_dir.resolve()
     output = ROOT / "build/test-results/settings"
