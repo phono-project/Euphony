@@ -1,0 +1,112 @@
+name: windows build
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release_checks:
+        description: Run real-model and extracted-ZIP validation
+        type: boolean
+        default: false
+      clean_dependencies:
+        description: Build dependencies without the cache
+        type: boolean
+        default: false
+      desktop_checks:
+        description: Run WebView2 and tray tests on the runner desktop
+        type: boolean
+        default: false
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+          fetch-depth: 0
+      - uses: prefix-dev/setup-pixi@v0
+        with:
+          pixi-version: v0.78.0
+          cache: ${{ inputs.clean_dependencies != true }}
+          locked: true
+      - name: Validate release tag and default branch
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          pixi run python tools/version.py --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git fetch origin $env:DEFAULT_BRANCH
+          git merge-base --is-ancestor HEAD "origin/$env:DEFAULT_BRANCH"
+          if ($LASTEXITCODE) { throw 'Release tag must belong to the default branch.' }
+      - name: Read dependency cache versions
+        id: dependencies
+        run: |
+          $deps=Get-Content dependencies.json -Raw | ConvertFrom-Json
+          $vcpkg=Get-Content vcpkg.json -Raw | ConvertFrom-Json
+          "key=$($vcpkg.'builtin-baseline')-$($deps.webview2.version)-$($deps.dictionary.version)-$($deps.language_model.version)-$($deps.core.version)" >> $env:GITHUB_OUTPUT
+      - uses: actions/cache@v4
+        if: inputs.clean_dependencies != true
+        with:
+          path: |
+            .deps
+            data/zh_CN.lm
+          key: windows-dependencies-${{ steps.dependencies.outputs.key }}
+      - name: Prepare SDK, WebView2, dictionary and KenLM
+        env:
+          VCPKG_ROOT: C:/vcpkg
+          VCPKG_BINARY_SOURCES: ${{ inputs.clean_dependencies == true && 'clear' || '' }}
+        run: |
+          pixi run python tools/download_core.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pixi run setup
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build both TSF architectures
+        run: pixi run python tools/workflow.py build
+      - name: Run CTest and isolated IPC
+        run: pixi run python tools/workflow.py test
+      - name: Package from clean staging
+        run: pixi run python tools/workflow.py package
+      - name: Download the fixed release model
+        if: github.event_name == 'release' || inputs.release_checks == true
+        run: pixi run python tools/download_models.py
+      - name: Validate real inference from the extracted ZIP
+        if: github.event_name == 'release' || inputs.release_checks == true
+        run: pixi run python tools/workflow.py release --model-dir .cache/models/phonop2c_v2_2_base_w8a8_model
+      - name: Run desktop interaction checks
+        if: inputs.desktop_checks == true
+        run: pixi run python tools/workflow.py desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: euphony-windows-x64
+          path: dist/Euphony-*-windows-x64.zip
+          if-no-files-found: error
+
+  upload:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: euphony-windows-x64
+          path: dist
+      - name: Attach validated ZIP to the published Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        shell: pwsh
+        run: gh release upload $env:RELEASE_TAG dist/*.zip --clobber
