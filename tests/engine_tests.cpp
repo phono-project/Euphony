@@ -196,7 +196,8 @@ int main() {
             check(!common.empty() && common[0].text=="你","actual libime data ranks ni by frequency");
             check(real.lookup("nihao")[0].text=="你好","actual libime n-grams rank phrase segmentation");
             auto unicodeFile=temp/L"语言模型.lm";
-            check(CreateHardLinkW(unicodeFile.c_str(),modelPath.c_str(),nullptr)!=FALSE,"Unicode language-model filename fixture is created");
+            // CI can place the checkout and system temporary directory on different volumes.
+            check(std::filesystem::copy_file(modelPath,unicodeFile),"Unicode language-model filename fixture is created");
             {LanguageModel unicode(unicodeFile);check(unicode.known("你"),"KenLM loads a real Chinese filename through its native path adapter");}
         }
         for(const auto& interaction:std::vector<std::string>{"Select","Space","Highlight"}) {
