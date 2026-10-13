@@ -59,10 +59,6 @@ Ordinary PR checks do not download or run a neural model. The manual entry point
 
 Packaging starts with a clean staging directory each time and includes both TSF DLLs, broker, settings, core, dictionary, KenLM, management scripts, version information, and licenses. Release validation extracts the ZIP and tests real-model loading and inference. Missing or incomplete models fail validation. Model packages are separate from the ZIP.
 
-`dependencies.json` 同时记录 Euphony 发布集成测试选用模型的文件大小和 SHA-256，只检查清单所列测试输入的字节一致性；额外文件不在检查范围内。这不定义模型格式、发布标准或 core 的兼容性承诺：模型生产端负责格式，core 负责其支持范围，Euphony 验证选定 SDK 和模型在应用中的集成。下载器检查已有文件及新下载，发布验证也在启动推理前检查显式模型目录。校验失败会指出文件，不自动覆盖已有模型；请检查所选目录，或移走错误文件后重新下载。更新测试模型时应一起更新 revision 和文件清单。直接运行 `smoke.py --model-dir` 仍可试验自定义模型。
-
-`dependencies.json` also records file sizes and SHA-256 hashes for Euphony’s selected release integration-test model, checking only the byte identity of listed test inputs; extra files are outside this check. It defines neither the model format, publishing standards nor core compatibility promises: the model producer owns the format, core owns its supported scope, and Euphony tests application integration with its selected SDK and model. The downloader checks existing files and new downloads; release verification checks the supplied model directory before inference. A mismatch identifies the file without overwriting existing models. Check the selected directory, or move the incorrect file aside before downloading again. Update the revision and file manifest together when changing the test model. Direct `smoke.py --model-dir` calls still support custom models.
-
 本地下载程序将固定修订的 W8A8 模型保存到本仓库 `.cache/models/phonop2c_v2_2_base_w8a8_model`，随后向验证入口显式传入目录：
 
 The local downloader saves the pinned W8A8 revision to this repository’s `.cache/models/phonop2c_v2_2_base_w8a8_model`. Then pass that directory explicitly to validation:
@@ -78,9 +74,9 @@ Alternatively, set `PHONO_TEST_MODEL_DIR`. The caller owns that path, with no ad
 
 ## 诊断 / Diagnostics
 
-工作流即使失败也尝试上传 `euphony-diagnostics-<run_id>-<attempt>`，保留 7 天，包括已生成的 CTest 报告、日志、截图和失败 smoke 的隔离配置。smoke 成功时清理临时配置；被其运行阶段异常处理捕获的错误写入 `build/test-results/temporary-smoke/<instance>/failure.json` 并保留配置。这不覆盖所有失败：前置文件检查、首次创建进程等发生在异常处理之外，模型摘要检查也早于 smoke，主要依靠 job 日志诊断。
+工作流即使失败也尝试上传 `euphony-diagnostics-<run_id>-<attempt>`，保留 7 天，包括已生成的 CTest 报告、日志、截图和失败 smoke 的隔离配置。smoke 成功时清理临时配置；被其运行阶段异常处理捕获的错误写入 `build/test-results/temporary-smoke/<instance>/failure.json` 并保留配置。这不覆盖所有失败：前置文件检查、首次创建进程等发生在异常处理之外，主要依靠 job 日志诊断。
 
-The workflow attempts to upload `euphony-diagnostics-<run_id>-<attempt>` even on failure, retaining generated CTest reports, logs, screenshots and failed smoke profiles for seven days. Successful smoke tests clean up their temporary profiles; errors caught during smoke execution retain the profile and write `build/test-results/temporary-smoke/<instance>/failure.json`. This does not cover every failure: preflight file checks and initial process creation happen outside that exception handler, and model digest checks precede smoke. Those failures primarily rely on job logs for diagnosis.
+The workflow attempts to upload `euphony-diagnostics-<run_id>-<attempt>` even on failure, retaining generated CTest reports, logs, screenshots and failed smoke profiles for seven days. Successful smoke tests clean up their temporary profiles; errors caught during smoke execution retain the profile and write `build/test-results/temporary-smoke/<instance>/failure.json`. This does not cover every failure: preflight file checks and initial process creation happen outside that exception handler. Those failures primarily rely on job logs for diagnosis.
 
 Actions 的控制台 job 日志与诊断 artifact 是不同的证据。上传步骤仅收集已有文件，不保证在 runner 丢失、进程被终止或上传失败后仍能生成或送达报告。设置窗口仅收集 `build/test-results/settings` 直接包含的 JSON 和 PNG，不递归上传 WebView profile；收集附件本身不代表真实桌面交互已通过。
 

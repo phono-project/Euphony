@@ -1,6 +1,5 @@
 """Verification failure paths; no model download, compiler or IME registration."""
 from pathlib import Path
-import hashlib
 import io
 import json
 import os
@@ -13,8 +12,6 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import build as build_tools
-import download_models
-import workflow
 
 
 class VerificationTests(unittest.TestCase):
@@ -22,10 +19,6 @@ class VerificationTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        self.content = b'{"fixed":true}'
-        self.model = {"repository": "test/model", "revision": "fixed", "files": [
-            {"path": "config.json", "size": len(self.content),
-             "sha256": hashlib.sha256(self.content).hexdigest()}]}
 
     def test_required_tests_allow_additions_but_not_missing_tests(self):
         for arch in ("x64", "x86"):
@@ -135,47 +128,6 @@ class VerificationTests(unittest.TestCase):
         self.assertIn("Return code: 0", log)
         self.assertIn(listing, log)
         self.assertIn(warning, log)
-
-    def test_existing_model_is_verified_without_network(self):
-        path = self.root / "config.json"
-        path.write_bytes(self.content)
-        with mock.patch.object(download_models, "MODEL", self.model), \
-             mock.patch.object(sys, "argv", ["download_models.py", "--output", str(self.root)]), \
-             mock.patch.object(download_models.urllib.request, "urlopen") as fetch:
-            download_models.main()
-            fetch.assert_not_called()
-            path.write_bytes(b'X' + self.content[1:])
-            with self.assertRaisesRegex(RuntimeError, "SHA-256 mismatch"):
-                download_models.main()
-            fetch.assert_not_called()
-            self.assertEqual(path.read_bytes(), b'X' + self.content[1:])
-
-    def test_missing_model_file_is_rejected(self):
-        with mock.patch.object(download_models, "MODEL", self.model):
-            with self.assertRaisesRegex(RuntimeError, "Missing model file"):
-                download_models.verify_model(self.root)
-
-    def test_download_is_verified_before_becoming_a_model_file(self):
-        with mock.patch.object(download_models, "MODEL", self.model), \
-             mock.patch.object(sys, "argv", ["download_models.py", "--output", str(self.root)]), \
-             mock.patch.object(download_models.urllib.request, "urlopen", return_value=io.BytesIO(b'X' + self.content[1:])):
-            with self.assertRaisesRegex(RuntimeError, "SHA-256 mismatch"):
-                download_models.main()
-        self.assertFalse((self.root / "config.json").exists())
-        with mock.patch.object(download_models, "MODEL", self.model), \
-             mock.patch.object(sys, "argv", ["download_models.py", "--output", str(self.root)]), \
-             mock.patch.object(download_models.urllib.request, "urlopen", return_value=io.BytesIO(self.content)):
-            download_models.main()
-        self.assertEqual((self.root / "config.json").read_bytes(), self.content)
-
-    def test_release_rejects_wrong_explicit_model_before_smoke(self):
-        (self.root / "config.json").write_bytes(b'X' + self.content[1:])
-        with mock.patch.object(download_models, "MODEL", self.model), \
-             mock.patch.object(sys, "argv", ["workflow.py", "release", "--model-dir", str(self.root)]), \
-             mock.patch.object(workflow, "run") as run:
-            with self.assertRaisesRegex(RuntimeError, "SHA-256 mismatch"):
-                workflow.main()
-            run.assert_not_called()
 
     @unittest.skipUnless(os.name == "nt", "Windows broker smoke")
     def test_smoke_failure_preserves_isolated_profile(self):
