@@ -111,6 +111,8 @@ jobs:
             build/test-results/*.json
             build/test-results/*.png
             build/test-results/*.bmp
+            build/test-results/settings/*.json
+            build/test-results/settings/*.png
             build/test-results/temporary-smoke/**
           if-no-files-found: warn
           retention-days: 7
