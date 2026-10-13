@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from version import PACKAGE
 from download_core import SDK
@@ -80,9 +81,19 @@ def main():
         reports = build / "test-results"
         reports.mkdir(parents=True, exist_ok=True)
         report = reports / "ctest.xml"
-        for name in ("ctest.xml", "ctest.log", "ctest-list.json"):
+        for name in ("ctest.xml", "ctest.log", "ctest-list.json", "ctest-discovery.log"):
             (reports / name).unlink(missing_ok=True)
-        listing = run(["ctest", "--test-dir", str(build), "--show-only=json-v1"], capture_output=True, text=True)
+        command = ["ctest", "--test-dir", str(build), "--show-only=json-v1"]
+        listing = subprocess.run(command, cwd=ROOT, env=env, check=False,
+            capture_output=True, encoding="utf-8", errors="replace")
+        (reports / "ctest-discovery.log").write_text(
+            f"Command: {subprocess.list2cmdline(command)}\nReturn code: {listing.returncode}\n"
+            f"\nstdout:\n{listing.stdout}\n\nstderr:\n{listing.stderr}\n", encoding="utf-8")
+        if listing.stderr:
+            print(listing.stderr, file=sys.stderr, end="")
+        if listing.returncode:
+            print(listing.stdout, end="")
+        listing.check_returncode()
         (reports / "ctest-list.json").write_text(listing.stdout, encoding="utf-8")
         required = required_tests(args.arch)
         require_tests([test["name"] for test in json.loads(listing.stdout)["tests"]], required)

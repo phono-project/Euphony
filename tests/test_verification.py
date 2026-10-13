@@ -58,7 +58,7 @@ class VerificationTests(unittest.TestCase):
         def invoke(command, **kwargs):
             if "--show-only=json-v1" in command:
                 self.assertFalse((reports / "ctest.xml").exists())
-                return subprocess.CompletedProcess(command, 0, stdout=listing)
+                return subprocess.CompletedProcess(command, 0, stdout=listing, stderr="")
             self.assertIn("--no-tests=error", command)
             (reports / "ctest.xml").write_text('<testsuite><testcase name="tsf_smoke"><failure/></testcase></testsuite>')
             (reports / "ctest.log").write_text("controlled failure")
@@ -72,6 +72,69 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual((reports / "ctest.log").read_text(), "controlled failure")
         self.assertEqual((reports / "ctest-list.json").read_text(), listing)
         self.assertIn("failure", (reports / "ctest.xml").read_text())
+
+    def test_ctest_discovery_failure_preserves_output_and_removes_old_reports(self):
+        reports = self.root / "test-results"
+        reports.mkdir()
+        names = ("ctest.xml", "ctest.log", "ctest-list.json", "ctest-discovery.log")
+        for name in names:
+            (reports / name).write_text("old success")
+        output = "partial discovery output\n"
+        error = "CMake Error: unknown command\n"
+        def invoke(command, **kwargs):
+            self.assertIn("--show-only=json-v1", command)
+            self.assertTrue(all(not (reports / name).exists() for name in names))
+            self.assertEqual(kwargs["encoding"], "utf-8")
+            self.assertEqual(kwargs["errors"], "replace")
+            return subprocess.CompletedProcess(command, 8, stdout=output, stderr=error)
+        with mock.patch.object(sys, "argv", ["build.py", "test", "--arch", "x86", "--build-dir", str(self.root)]), \
+             mock.patch.object(build_tools, "developer_environment", return_value={}), \
+             mock.patch.object(build_tools.subprocess, "run", side_effect=invoke) as run, \
+             mock.patch.object(sys, "stdout", new_callable=io.StringIO) as stdout, \
+             mock.patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
+            with self.assertRaises(subprocess.CalledProcessError) as failure:
+                build_tools.main()
+        self.assertEqual(failure.exception.returncode, 8)
+        self.assertEqual(failure.exception.stdout, output)
+        self.assertEqual(failure.exception.stderr, error)
+        run.assert_called_once()
+        self.assertEqual(stdout.getvalue(), output)
+        self.assertEqual(stderr.getvalue(), error)
+        log = (reports / "ctest-discovery.log").read_text(encoding="utf-8")
+        self.assertIn("Command: ctest --test-dir", log)
+        self.assertIn("Return code: 8", log)
+        self.assertIn(f"stdout:\n{output}", log)
+        self.assertIn(f"stderr:\n{error}", log)
+        self.assertNotIn("old success", log)
+        for name in names[:-1]:
+            self.assertFalse((reports / name).exists())
+
+    def test_ctest_discovery_warnings_do_not_prevent_testing(self):
+        reports = self.root / "test-results"
+        names = [*sorted(build_tools.required_tests("x86")), "new_test"]
+        listing = json.dumps({"tests": [{"name": name} for name in names]})
+        warning = "CMake Warning: discovery warning\n"
+        def invoke(command, **kwargs):
+            if "--show-only=json-v1" in command:
+                return subprocess.CompletedProcess(command, 0, stdout=listing, stderr=warning)
+            self.assertEqual((reports / "ctest-list.json").read_text(), listing)
+            self.assertIn("--no-tests=error", command)
+            suite = ET.Element("testsuite")
+            for name in names:
+                ET.SubElement(suite, "testcase", name=name, status="run")
+            ET.ElementTree(suite).write(reports / "ctest.xml")
+            return subprocess.CompletedProcess(command, 0)
+        with mock.patch.object(sys, "argv", ["build.py", "test", "--arch", "x86", "--build-dir", str(self.root)]), \
+             mock.patch.object(build_tools, "developer_environment", return_value={}), \
+             mock.patch.object(build_tools.subprocess, "run", side_effect=invoke) as run, \
+             mock.patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
+            build_tools.main()
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(stderr.getvalue(), warning)
+        log = (reports / "ctest-discovery.log").read_text(encoding="utf-8")
+        self.assertIn("Return code: 0", log)
+        self.assertIn(listing, log)
+        self.assertIn(warning, log)
 
     def test_existing_model_is_verified_without_network(self):
         path = self.root / "config.json"
