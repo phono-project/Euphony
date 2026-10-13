@@ -9,6 +9,7 @@ import tempfile
 import zipfile
 
 from version import ROOT, VERSION, PACKAGE, PACKAGE_NAME
+from download_models import verify_model
 
 def run(*arguments):
     subprocess.run(arguments, cwd=ROOT, check=True)
@@ -64,6 +65,7 @@ def main():
     elif args.action == "release":
         if not args.model_dir or not (args.model_dir / "config.json").is_file():
             raise SystemExit("Release validation requires --model-dir or PHONO_TEST_MODEL_DIR; missing models fail.")
+        verify_model(args.model_dir)
         archive = ROOT / "dist" / f"{PACKAGE_NAME}.zip"
         with tempfile.TemporaryDirectory(prefix="euphony-release-") as temporary:
             with zipfile.ZipFile(archive) as source:

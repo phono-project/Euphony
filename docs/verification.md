@@ -27,6 +27,10 @@ Build trees are `build/x64` and `build/x86`. x86 builds only TSF and connects to
 
 `pixi run test` runs only CTest for both architectures. Model-free checks cover dictionary and KenLM paths, settings and learning, cancellation, private fields, IPC lifecycle, and TSF input behavior. Missing neural models are never counted as successful release inference.
 
+日常检查要求 x64 的 `common`、`engine`、`tsf_policy`、`tsf_smoke` 以及 x86 的两项 TSF 测试存在并通过；允许增加测试，但必要测试缺失或跳过会失败。CTest 列表、JUnit 和输出日志保存在 `build/<arch>/test-results`。可用 `pixi run python -m unittest discover -s tests -p test_verification.py -v` 单独检查验证脚本的失败路径。
+
+Routine checks require x64 `common`, `engine`, `tsf_policy`, `tsf_smoke` and both x86 TSF tests to exist and pass. Additional tests are allowed; missing or skipped required tests fail verification. CTest listings, JUnit and output logs are saved under `build/<arch>/test-results`. Run `pixi run python -m unittest discover -s tests -p test_verification.py -v` to test verification failure paths separately.
+
 ## SDK 与缓存 / SDK and caches
 
 `dependencies.json` 固定 `phono-project/phono-core` 的 Windows x64 Release SDK，当前资产为 `phono-core-sdk-0.1.1-windows-x64.zip`。`tools/download_core.py` 校验对应 `SHA256SUMS-windows-x64.txt`，下载到 `.deps/phono-core-0.1.1-windows-x64`，并以 `core-dependency.json` 记录实际 SHA-256。构建使用 SDK 的 C ABI 头文件、DLL 与许可证，不拉取 core 源码。第一次完整构建前，固定 core Release 必须已发布资产。
@@ -55,6 +59,10 @@ The manual entry point’s `release_checks` runs real-model and extracted-ZIP va
 
 Packaging starts with a clean staging directory each time and includes both TSF DLLs, broker, settings, core, dictionary, KenLM, management scripts, version information, and licenses. Release validation extracts the ZIP and tests real-model loading and inference. Missing or incomplete models fail validation. Model packages are separate from the ZIP.
 
+`dependencies.json` 同时记录发布模型文件的大小和 SHA-256。下载器检查已有文件及新下载，发布验证也在启动推理前检查显式模型目录。校验失败会指出文件，不自动覆盖已有模型；请检查所选目录，或移走错误文件后重新下载。更新模型时应一起更新 revision 和文件清单。直接运行 `smoke.py --model-dir` 仍可试验自定义模型。
+
+`dependencies.json` also records release model file sizes and SHA-256 hashes. The downloader checks existing files and new downloads; release verification checks the supplied model directory before inference. A mismatch identifies the file without overwriting existing models. Check the selected directory, or move the incorrect file aside before downloading again. Update the revision and file manifest together. Direct `smoke.py --model-dir` calls still support custom models.
+
 本地下载程序将固定修订的 W8A8 模型保存到本仓库 `.cache/models/phonop2c_v2_2_base_w8a8_model`，随后向验证入口显式传入目录：
 
 The local downloader saves the pinned W8A8 revision to this repository’s `.cache/models/phonop2c_v2_2_base_w8a8_model`. Then pass that directory explicitly to validation:
@@ -69,6 +77,10 @@ pixi run python tools/workflow.py release --model-dir .cache/models/phonop2c_v2_
 Alternatively, set `PHONO_TEST_MODEL_DIR`. The caller owns that path, with no adjacent-repository default. Automatically downloaded release models should use the Hugging Face revision pinned by the dependency file. See the README for user model download commands.
 
 ## 桌面验证 / Desktop validation
+
+工作流即使失败也尝试上传 `euphony-diagnostics-<run_id>-<attempt>`，保留 7 天，包括 CTest 报告、日志、已有截图和失败 smoke 的隔离配置。smoke 成功时清理临时配置，失败时将错误写入对应 `build/test-results/temporary-smoke/<instance>/failure.json` 并保留配置；控制台输出仍由 Actions 保存。上传失败或 runner 丢失时无法保证文件送达；尚未生成报告的早期失败以 job 日志为准。
+
+The workflow attempts to upload `euphony-diagnostics-<run_id>-<attempt>` even on failure, retaining CTest reports, logs, existing screenshots and failed smoke profiles for seven days. Successful smoke tests clean up their temporary profiles; failures retain the profile and write `build/test-results/temporary-smoke/<instance>/failure.json`. Actions continues to retain console output. Artifact delivery cannot be guaranteed after runner loss or upload failure; early failures without reports are diagnosed from job logs.
 
 在有交互桌面及 WebView2 Runtime 的 Windows 环境中，打包后单独运行：
 

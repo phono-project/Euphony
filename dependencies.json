@@ -22,6 +22,53 @@
   },
   "model": {
     "repository": "afirelily/phonop2c_v2_2_base_w8a8_model",
-    "revision": "cf11a953a62fbba10f0eb585bc65802e01b70f7d"
+    "revision": "cf11a953a62fbba10f0eb585bc65802e01b70f7d",
+    "files": [
+      {
+        "path": "bins/pinyin_segment.pte",
+        "size": 1862272,
+        "sha256": "6ec55f34174ac9ec1f2489d51677b65efc4769d702e69c1a1e4038b4cccb236f"
+      },
+      {
+        "path": "bins/post_model.pte",
+        "size": 27171200,
+        "sha256": "4991531f627a61dba8433836d338d05527dc96285de59f6ea70183204224752a"
+      },
+      {
+        "path": "bins/pre_model.pte",
+        "size": 101803776,
+        "sha256": "3bbdfeb37000688299a67d478edf8364f3c8c04d82f2e37b259a92e9427462c8"
+      },
+      {
+        "path": "config.json",
+        "size": 1247,
+        "sha256": "61c13c1667cf83d1ea8b6d3aa58fa846f4d6b9c2b9baefca9ed5f528e6da50e7"
+      },
+      {
+        "path": "ops_config/pinyin_segment_ops.yaml",
+        "size": 1183,
+        "sha256": "a47454803ce3ccba775cb50519caeaa09ca054f058da1ac6182aa35ed37953de"
+      },
+      {
+        "path": "vocabs/chinese_vocab.txt",
+        "size": 32615,
+        "sha256": "668f69e856c357157720ab5a6f8644dca8a253b439772f92cd762b186a53b421"
+      },
+      {
+        "path": "vocabs/context_vocab.txt",
+        "size": 32897,
+        "sha256": "d9f1470566d6cd41629299414e5fcc9bc0fe6566978c88c7d5a86a6520b4a143"
+      },
+      {
+        "path": "vocabs/pinyin_char_vocab.txt",
+        "size": 64,
+        "sha256": "8c5b41d664828a51f9531c2e08777e7dab281000cfeb892f21cc54e6ce00d38b"
+      },
+      {
+        "path": "vocabs/pinyin_vocab.txt",
+        "size": 1831,
+        "sha256": "1289a232d783c73e16433a9f474f492a72a321caad7af50b1c574b9357d43279"
+      }
+    ]
   }
 }
