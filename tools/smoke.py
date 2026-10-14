@@ -11,6 +11,7 @@ import time
 import uuid
 import shutil
 import sys
+import traceback
 from version import PACKAGE
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -102,9 +103,11 @@ def main():
     pipe = rf"\\.\pipe\Euphony-v1-{user_sid()}-{desktop.value}-{instance}"
     profile = ROOT / "build/test-results/temporary-smoke" / instance
     profile.mkdir(parents=True)
+    (ROOT / "build/test-results/smoke.json").unlink(missing_ok=True)
     (profile / "config.json").write_text('{"model_enabled":false}', encoding="utf-8")
     env = {**os.environ, "EUPHONY_INSTANCE": instance, "EUPHONY_USER_DIR": str(profile)}
     process = subprocess.Popen([str(broker)], env=env, creationflags=0x08000000)
+    passed = False
     seq = 0
     def request(op, session="smoke", **fields):
         nonlocal seq
@@ -178,6 +181,7 @@ def main():
             assert process.returncode == 0
             print(json.dumps({"ipc": "passed", "dictionary_fallback": "passed", "session_isolation": "passed",
                 "config_validation": "passed", "bin_directory": str(bin_dir)}, indent=2))
+            passed = True
             return
         configured = call(pipe, {"op": "set_config", "config": {
             "model_enabled": True,
@@ -248,15 +252,27 @@ def main():
         report_name = "smoke.json"
         (report_directory / report_name).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(json.dumps(report, ensure_ascii=False, indent=2))
+        passed = True
+    except Exception:
+        (profile / "failure.json").write_text(json.dumps({"result": "failure",
+            "error": traceback.format_exc(), "bin_directory": str(bin_dir),
+            "profile": str(profile)}, ensure_ascii=False, indent=2), encoding="utf-8")
+        raise
     finally:
-        if process.poll() is None:
-            try:
-                call(pipe, {"op": "shutdown"})
-                process.wait(timeout=10)
-            except (OSError, subprocess.TimeoutExpired):
-                process.terminate()
-                process.wait(timeout=5)
-        shutil.rmtree(profile)
+        try:
+            if process.poll() is None:
+                try:
+                    call(pipe, {"op": "shutdown"})
+                    process.wait(timeout=10)
+                except (OSError, subprocess.TimeoutExpired):
+                    process.terminate()
+                    process.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            if passed:
+                raise
+            print(f"Broker cleanup failed: {error}", file=sys.stderr)
+        if passed:
+            shutil.rmtree(profile)
 
 if __name__ == "__main__":
     main()

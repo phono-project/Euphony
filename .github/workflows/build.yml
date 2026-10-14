@@ -38,6 +38,8 @@ jobs:
           pixi-version: v0.78.0
           cache: ${{ inputs.clean_dependencies != true }}
           locked: true
+      - name: Test verification failure paths
+        run: pixi run python -m unittest discover -s tests -p test_verification.py -v
       - name: Validate release tag and default branch
         if: github.event_name == 'release'
         env:
@@ -91,6 +93,29 @@ jobs:
           name: euphony-windows-x64
           path: dist/Euphony-*-windows-x64.zip
           if-no-files-found: error
+
+      - name: Preserve verification diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: euphony-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/x64/test-results/**
+            build/x86/test-results/**
+            build/x64/Testing/Temporary/*.log
+            build/x86/Testing/Temporary/*.log
+            build/x64/bin/*.png
+            build/x86/bin/*.png
+            build/x64/bin/*.bmp
+            build/x86/bin/*.bmp
+            build/test-results/*.json
+            build/test-results/*.png
+            build/test-results/*.bmp
+            build/test-results/settings/*.json
+            build/test-results/settings/*.png
+            build/test-results/temporary-smoke/**
+          if-no-files-found: warn
+          retention-days: 7
 
   upload:
     if: github.event_name == 'release'

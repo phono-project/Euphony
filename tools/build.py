@@ -5,10 +5,30 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import xml.etree.ElementTree as ET
 from version import PACKAGE
 from download_core import SDK
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def required_tests(arch):
+    return {"tsf_policy", "tsf_smoke"} | ({"common", "engine"} if arch == "x64" else set())
+
+def require_tests(names, required):
+    missing = required - set(names)
+    if missing:
+        raise RuntimeError(f"Missing required CTest tests: {', '.join(sorted(missing))}")
+
+def verify_test_report(report, required):
+    cases = ET.parse(report).getroot().findall(".//testcase")
+    require_tests([case.get("name") for case in cases], required)
+    for case in cases:
+        if case.get("name") in required and (
+            case.get("status") in ("notrun", "disabled") or
+            any(case.find(tag) is not None for tag in ("skipped", "failure", "error"))
+        ):
+            raise RuntimeError(f"Required CTest did not pass: {case.get('name')}")
 
 def developer_environment(arch):
     env = os.environ.copy()
@@ -44,8 +64,8 @@ def main():
     args = parser.parse_args()
     build = args.build_dir.resolve() if args.build_dir else ROOT / "build" / args.arch
     env = developer_environment(args.arch)
-    def run(command):
-        subprocess.run(command, cwd=ROOT, env=env, check=True)
+    def run(command, **kwargs):
+        return subprocess.run(command, cwd=ROOT, env=env, check=True, **kwargs)
     if args.action == "configure":
         run(["cmake", "-S", str(ROOT), "-B", str(build), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", f"-DEUPHONY_TSF_ONLY={'ON' if args.arch == 'x86' else 'OFF'}", f"-DPHONO_CORE_SDK_DIR={args.core_sdk.resolve()}"])
     elif args.action == "build":
@@ -58,7 +78,28 @@ def main():
         # installing registry entries just to run an isolated integration test.
         env["EUPHONY_BROKER_PATH"] = os.environ.get("EUPHONY_BROKER_PATH", str(
             build / "bin/EuphonyBroker.exe" if args.arch == "x64" else ROOT / "build/x64/bin/EuphonyBroker.exe"))
-        run(["ctest", "--test-dir", str(build), "--output-on-failure"])
+        reports = build / "test-results"
+        reports.mkdir(parents=True, exist_ok=True)
+        report = reports / "ctest.xml"
+        for name in ("ctest.xml", "ctest.log", "ctest-list.json", "ctest-discovery.log"):
+            (reports / name).unlink(missing_ok=True)
+        command = ["ctest", "--test-dir", str(build), "--show-only=json-v1"]
+        listing = subprocess.run(command, cwd=ROOT, env=env, check=False,
+            capture_output=True, encoding="utf-8", errors="replace")
+        (reports / "ctest-discovery.log").write_text(
+            f"Command: {subprocess.list2cmdline(command)}\nReturn code: {listing.returncode}\n"
+            f"\nstdout:\n{listing.stdout}\n\nstderr:\n{listing.stderr}\n", encoding="utf-8")
+        if listing.stderr:
+            print(listing.stderr, file=sys.stderr, end="")
+        if listing.returncode:
+            print(listing.stdout, end="")
+        listing.check_returncode()
+        (reports / "ctest-list.json").write_text(listing.stdout, encoding="utf-8")
+        required = required_tests(args.arch)
+        require_tests([test["name"] for test in json.loads(listing.stdout)["tests"]], required)
+        run(["ctest", "--test-dir", str(build), "--output-on-failure", "--no-tests=error",
+             "--output-junit", str(report), "--output-log", str(reports / "ctest.log")])
+        verify_test_report(report, required)
     elif args.action == "package":
         run(["cmake", "--install", str(build), "--prefix", str(args.install_dir.resolve())])
 

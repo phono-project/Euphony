@@ -23,9 +23,13 @@ pixi run verify
 
 Build trees are `build/x64` and `build/x86`. x86 builds only TSF and connects to the x64 broker through isolated IPC; no x86 core is needed. `verify` runs CTest for both architectures, model-free broker smoke tests, and registration-helper process tests. Pull requests and manual checks reuse these entry points.
 
-`pixi run test` 仅运行两个架构的 CTest。无模型检查验证词典和 KenLM 路线、配置与学习、取消、私密字段、IPC 生命周期和 TSF 输入行为；不将缺失深度模型当作发布推理成功。
+`pixi run test` 会先构建，再运行两个架构的 CTest、无模型 IPC 和注册辅助检查。无模型检查验证词典和 KenLM 路线、配置与学习、取消、私密字段、IPC 生命周期和 TSF 输入行为；不将缺失深度模型当作发布推理成功。
 
-`pixi run test` runs only CTest for both architectures. Model-free checks cover dictionary and KenLM paths, settings and learning, cancellation, private fields, IPC lifecycle, and TSF input behavior. Missing neural models are never counted as successful release inference.
+`pixi run test` builds first, then runs CTest for both architectures, model-free IPC and registration-helper checks. Model-free checks cover dictionary and KenLM paths, settings and learning, cancellation, private fields, IPC lifecycle, and TSF input behavior. Missing neural models are never counted as successful release inference.
+
+CTest 要求 x64 的 `common`、`engine`、`tsf_policy`、`tsf_smoke` 以及 x86 的两项 TSF 测试存在并通过；允许新增测试，必要测试缺失或跳过则失败。报告与发现日志保存在 `build/<arch>/test-results`。
+
+CTest requires x64 `common`, `engine`, `tsf_policy`, `tsf_smoke` and both x86 TSF tests to exist and pass. Additional tests are allowed; missing or skipped required tests fail verification. Reports and discovery logs are saved under `build/<arch>/test-results`.
 
 ## SDK 与缓存 / SDK and caches
 
@@ -47,7 +51,7 @@ pixi run python tools/workflow.py build --core-sdk C:\SDKs\phono-core
 
 The workspace version in `pixi.toml` is the single source read by CMake, resources, manager scripts, package directory, and ZIP. Releases use `vX.Y.Z` tags and validate matching tag and package versions. Create the tag and publish its GitHub Release; `release.published` checks out the tag, then builds, tests, packages, and uploads. Stable releases and prereleases share this path, while pushing a tag alone does not trigger it. Write permission is granted separately to the upload job.
 
-手动入口的 `release_checks` 可执行真实模型和解压 ZIP 验证，`clean_dependencies` 可跳过依赖缓存以验证首次构建，`desktop_checks` 可在适合的桌面环境运行交互检查。检查产物保存在 Actions；只有已发布 Release 的执行上传附件。
+手动入口的 `release_checks` 可执行真实模型和解压 ZIP 验证，`clean_dependencies` 可跳过依赖缓存以验证首次构建，`desktop_checks` 可在适合的桌面环境运行交互检查。检查产物保存在 Actions；只有已发布 Release 的执行向 Release 上传附件。
 
 The manual entry point’s `release_checks` runs real-model and extracted-ZIP validation, `clean_dependencies` skips dependency caches to check a first build, and `desktop_checks` runs interaction checks in a suitable desktop environment. Checked artifacts are retained in Actions. Only published Release runs attach them to a Release.
 
@@ -67,6 +71,12 @@ pixi run python tools/workflow.py release --model-dir .cache/models/phonop2c_v2_
 也可设置 `PHONO_TEST_MODEL_DIR`。路径属于调用方，不设相邻仓库默认值。自动下载的发布模型应使用依赖文件固定的 Hugging Face 修订；用户模型下载命令见 README。
 
 Alternatively, set `PHONO_TEST_MODEL_DIR`. The caller owns that path, with no adjacent-repository default. Automatically downloaded release models should use the Hugging Face revision pinned by the dependency file. See the README for user model download commands.
+
+## 诊断 / Diagnostics
+
+工作流即使失败也会尝试将已生成的报告、日志、截图和 smoke 失败配置上传为 `euphony-diagnostics-<run_id>-<attempt>`，保留 7 天。smoke 运行阶段捕获的异常记录在 `build/test-results/temporary-smoke/<instance>/failure.json`；更早的失败请查看 job 日志。
+
+Even on failure, the workflow attempts to upload generated reports, logs, screenshots and failed smoke profiles as `euphony-diagnostics-<run_id>-<attempt>`, retained for seven days. Exceptions caught during smoke execution are recorded in `build/test-results/temporary-smoke/<instance>/failure.json`; consult the job log for earlier failures.
 
 ## 桌面验证 / Desktop validation
 
