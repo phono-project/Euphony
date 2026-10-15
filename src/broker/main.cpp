@@ -33,7 +33,8 @@ json dispatch(const json& request, std::vector<std::shared_ptr<euphony::Engine>>
     const auto op = request.value("op", "");
     if (op == "set_mode") {
         if (!request.contains("chinese") || !request["chinese"].is_boolean()) throw std::runtime_error("Invalid input mode");
-        if (active_tray) active_tray->set_mode(request.at("chinese").get<bool>());
+        if (active_tray) active_tray->set_mode(request.at("chinese").get<bool>(),
+            request.value("active",false),reinterpret_cast<HWND>(request.value("owner",std::uintptr_t{})));
         return {{"ok",true},{"version",1}};
     }
     if (op == "shutdown") {

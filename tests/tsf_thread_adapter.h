@@ -28,7 +28,7 @@ public:
     HRESULT STDMETHODCALLTYPE GetFocus(ITfDocumentMgr** out) override { return real_->GetFocus(out); }
     HRESULT STDMETHODCALLTYPE SetFocus(ITfDocumentMgr* document) override { return real_->SetFocus(document); }
     HRESULT STDMETHODCALLTYPE AssociateFocus(HWND window,ITfDocumentMgr* next,ITfDocumentMgr** old) override { return real_->AssociateFocus(window,next,old); }
-    HRESULT STDMETHODCALLTYPE IsThreadFocus(BOOL* out) override { return real_->IsThreadFocus(out); }
+    HRESULT STDMETHODCALLTYPE IsThreadFocus(BOOL* out) override { if (!out) return E_POINTER; *out=TRUE; return S_OK; }
     HRESULT STDMETHODCALLTYPE GetFunctionProvider(REFCLSID id,ITfFunctionProvider** out) override { return real_->GetFunctionProvider(id,out); }
     HRESULT STDMETHODCALLTYPE EnumFunctionProviders(IEnumTfFunctionProviders** out) override { return real_->EnumFunctionProviders(out); }
     HRESULT STDMETHODCALLTYPE GetGlobalCompartment(ITfCompartmentMgr** out) override { return real_->GetGlobalCompartment(out); }

@@ -9,7 +9,7 @@ class BrokerTray {
 public:
     explicit BrokerTray(std::atomic_bool& stopping);
     ~BrokerTray();
-    void set_mode(bool chinese);
+    void set_mode(bool chinese, bool active, HWND owner);
     BrokerTray(const BrokerTray&) = delete;
     BrokerTray& operator=(const BrokerTray&) = delete;
 private:

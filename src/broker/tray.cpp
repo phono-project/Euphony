@@ -137,6 +137,8 @@ struct BrokerTray::Impl {
     UINT taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
     HICON icon = nullptr;
     bool chinese = true;
+    bool input_active = false;
+    HWND input_owner = nullptr;
     struct MenuLabel { std::wstring text; };
     std::deque<MenuLabel> menu_labels;
     HFONT menu_font{};
@@ -162,6 +164,7 @@ struct BrokerTray::Impl {
         if (ui.joinable()) ui.join();
     }
     void add_icon() {
+        if (!input_active) return;
         if (!test_output.empty() && !shell_test) return;
         if (icon_added) return;
         NOTIFYICONDATAW data{sizeof(data)};
@@ -178,6 +181,7 @@ struct BrokerTray::Impl {
     }
     void remove_icon() {
         if (window.load()) KillTimer(window.load(), icon_retry_timer);
+        if (window.load()) KillTimer(window.load(), 2);
         if (icon_added) { NOTIFYICONDATAW data{sizeof(data)}; data.hWnd = window.load(); data.uID = 1; data.uFlags = NIF_GUID; data.guidItem = icon_guid; Shell_NotifyIconW(NIM_DELETE, &data); icon_added = false; }
     }
     void queue(Job job) {
@@ -315,16 +319,32 @@ struct BrokerTray::Impl {
             ++test_phase; command(layout_id + (original_config.at("candidate_layout") == "horizontal" ? 1 : 0));
         } else {
             bool shell_valid = true;
+            bool visibility_valid = true;
             if (shell_test) {
                 // Recreate only this test icon, then exercise the actual restart handler.
                 remove_icon(); SendMessageW(window.load(), taskbar_created, 0, 0);
                 NOTIFYICONIDENTIFIER id{sizeof(id)}; id.hWnd = window.load(); id.uID = 1; id.guidItem = icon_guid;
                 RECT bounds{};
                 shell_valid = icon_added && add_attempts >= 3 && SUCCEEDED(Shell_NotifyIconGetRect(&id, &bounds)) && bounds.bottom > bounds.top;
+                // Use an actual foreground owner and exercise the same messages
+                // as TSF, including Shell restart/retry while switched away.
+                const auto owner=GetForegroundWindow();
+                SendMessageW(window.load(),mode_message,3,reinterpret_cast<LPARAM>(owner));
+                visibility_valid=icon_added;
+                SendMessageW(window.load(),mode_message,1,reinterpret_cast<LPARAM>(owner));
+                SendMessageW(window.load(),taskbar_created,0,0);
+                SendMessageW(window.load(),WM_TIMER,icon_retry_timer,0);
+                visibility_valid=visibility_valid && !icon_added && FAILED(Shell_NotifyIconGetRect(&id,&bounds));
+                SendMessageW(window.load(),mode_message,3,reinterpret_cast<LPARAM>(owner));
+                // A delayed notification from a different TSF owner must not
+                // hide the icon belonging to the current foreground owner.
+                SendMessageW(window.load(),mode_message,1,reinterpret_cast<LPARAM>(window.load()));
+                visibility_valid=visibility_valid && icon_added && SUCCEEDED(Shell_NotifyIconGetRect(&id,&bounds));
             }
-            test_result({{"ok", current == original_config && shell_valid}, {"native_menu", true}, {"icon_resource", bool(icon)},
+            test_result({{"ok", current == original_config && shell_valid && visibility_valid}, {"native_menu", true}, {"icon_resource", bool(icon)},
                 {"shortcut_saved_via_ipc", true}, {"layout_saved_via_ipc", true}, {"config_restored", current == original_config},
-                {"shell_test", shell_test}, {"shell_retry_and_recreation", shell_test && shell_valid}});
+                {"shell_test", shell_test}, {"shell_retry_and_recreation", shell_test && shell_valid},
+                {"input_method_visibility",shell_test && visibility_valid}});
         }
     }
     void deliver() {
@@ -363,7 +383,16 @@ struct BrokerTray::Impl {
             if (message==WM_DRAWITEM && lp && self->draw_menu(*reinterpret_cast<DRAWITEMSTRUCT*>(lp))) return TRUE;
             if (message == WM_TIMER && wp == 2) { promote_icon(self->icon_guid); KillTimer(hwnd,2); return 0; }
             if (message == mode_message) {
-                self->chinese=wp!=0;
+                const auto owner=reinterpret_cast<HWND>(lp);
+                if (wp&2) {
+                    const auto thread=GetWindowThreadProcessId(owner,nullptr);
+                    if (!thread || thread!=GetWindowThreadProcessId(GetForegroundWindow(),nullptr)) return 0;
+                    self->input_owner=owner; self->input_active=true;
+                } else {
+                    if (owner!=self->input_owner) return 0;
+                    self->input_active=false; self->input_owner=nullptr; self->remove_icon();
+                }
+                self->chinese=(wp&1)!=0;
                 auto icon=static_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(self->chinese?IDI_CHINESE:IDI_ENGLISH),IMAGE_ICON,
                     GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),0));
                 if (icon) {
@@ -373,6 +402,7 @@ struct BrokerTray::Impl {
                     if (self->icon_added) Shell_NotifyIconW(NIM_MODIFY,&data);
                     if (self->icon) DestroyIcon(self->icon); self->icon=icon;
                 }
+                if (self->input_active) self->add_icon();
                 return 0;
             }
             if (message == self->taskbar_created) { self->icon_added = false; self->add_icon(); return 0; }
@@ -404,6 +434,7 @@ struct BrokerTray::Impl {
         if (!window.load()) { if (icon) { DestroyIcon(icon); icon=nullptr; } if (SUCCEEDED(com)) CoUninitialize(); return; }
         // A manually elevated broker still needs the user shell's restart event.
         ChangeWindowMessageFilterEx(window.load(), taskbar_created, MSGFLT_ALLOW, nullptr);
+        input_active=shell_test;
         add_icon(); worker = std::thread([this] { service(); });
         if (!test_output.empty() && !shell_test) queue({});
         MSG message{};
@@ -421,5 +452,5 @@ BrokerTray::BrokerTray(std::atomic_bool& stopping) {
     impl_ = std::make_unique<Impl>(stopping);
 }
 BrokerTray::~BrokerTray() = default;
-void BrokerTray::set_mode(bool chinese) { if (impl_) if (auto window=impl_->window.load()) PostMessageW(window,mode_message,chinese,0); }
+void BrokerTray::set_mode(bool chinese, bool active, HWND owner) { if (impl_) if (auto window=impl_->window.load()) PostMessageW(window,mode_message,(chinese?1:0)|(active?2:0),reinterpret_cast<LPARAM>(owner)); }
 }

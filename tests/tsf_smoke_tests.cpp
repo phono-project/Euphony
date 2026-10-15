@@ -64,6 +64,8 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
     try {
         for (int cycle=0;cycle<2;++cycle) {
             check(service->ActivateEx(adapter.Get(),service_client,0),"Service activation failed");
+            ComPtr<ITfActiveLanguageProfileNotifySink> selected; check(service->QueryInterface(IID_PPV_ARGS(&selected)),"Profile sink missing");
+            check(selected->OnActivated(euphony::tsf::kService,euphony::tsf::kProfile,TRUE),"Test profile selection failed");
             check(manager->SetFocus(document.Get()),"Test document focus failed");
             BOOL eaten{}; check(keys->OnTestKeyDown(context.Get(),'N',0,&eaten),"Key test failed");
             if (!eaten) throw std::runtime_error("Pinyin start key not consumed");
@@ -242,6 +244,35 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
         if (!store->ended) throw std::runtime_error("TSF composition never ended");
     } catch (...) { broker.call({{"version",1},{"op","set_config"},{"config",initial_config}}); service->Deactivate(); document->Pop(TF_POPF_ALL); source->UnadviseSink(ui_cookie); manager->Deactivate(); throw; }
     broker.call({{"version",1},{"op","set_config"},{"config",initial_config}});
+    // Keep an activated frontend and its real configuration timer alive after
+    // shutdown. Neither focus notifications nor cleanup may recreate the broker.
+    check(service->ActivateEx(adapter.Get(),service_client,0),"Exit regression activation failed");
+    ComPtr<ITfThreadFocusSink> thread_focus; check(service->QueryInterface(IID_PPV_ARGS(&thread_focus)),"Thread focus sink missing");
+    ComPtr<ITfActiveLanguageProfileNotifySink> profile; check(service->QueryInterface(IID_PPV_ARGS(&profile)),"Profile activation sink missing");
+    check(profile->OnActivated(euphony::tsf::kService,euphony::tsf::kProfile,TRUE),"Exit test profile selection failed");
+    auto wait_messages=[](DWORD duration) {
+        const auto until=GetTickCount64()+duration;
+        pump_until([&] { return GetTickCount64()>=until; },duration+1000,"Lifecycle observation timed out");
+    };
+    const auto pipe=euphony::pipe_name();
+    auto broker_present=[&] { return WaitNamedPipeW(pipe.c_str(),1) || GetLastError()==ERROR_SEM_TIMEOUT; };
+    wait_messages(300);
+    broker.call({{"version",1},{"op","shutdown"}});
+    pump_until([&] { return !broker_present(); },5000,"Broker did not stop");
+    check(thread_focus->OnKillThreadFocus(),"Exit focus loss failed");
+    check(keys->OnSetFocus(FALSE),"Exit keyboard focus loss failed");
+    check(thread_focus->OnSetThreadFocus(),"Exit focus restore failed");
+    check(keys->OnSetFocus(TRUE),"Exit keyboard focus restore failed");
+    wait_messages(3500);
+    if (broker_present()) throw std::runtime_error("Passive frontend requests restarted the stopped broker");
+    check(profile->OnActivated(euphony::tsf::kService,euphony::tsf::kProfile,FALSE),"Profile switch away failed");
+    check(profile->OnActivated(euphony::tsf::kService,euphony::tsf::kProfile,TRUE),"Profile switch back failed");
+    pump_until([&] { return broker_present(); },15000,"Selecting Euphony again did not restart the broker");
+    euphony::IpcClient(15000,false).call({{"version",1},{"op","shutdown"}});
+    pump_until([&] { return !broker_present(); },5000,"Reselected broker did not stop");
+    check(service->Deactivate(),"Exit cleanup failed");
+    wait_messages(3000);
+    if (broker_present()) throw std::runtime_error("Frontend deactivation restarted the stopped broker");
     document->Pop(TF_POPF_ALL); source->UnadviseSink(ui_cookie); manager->Deactivate();
 }
 int wmain(int argc,wchar_t** argv) {
@@ -279,7 +310,7 @@ int wmain(int argc,wchar_t** argv) {
             check(service->Deactivate(),"Inactive service cleanup failed");
         }
         pump_until([&] { return unload()==S_OK; },5000,"COM or worker references leaked after destruction");
-        std::cout<<"TSF exports, activation lifecycle, real text-store composition, password privacy and UIless candidates passed without registration\n";
+        std::cout<<"TSF exports, activation lifecycle, real text-store composition, password privacy, UIless candidates and shutdown without passive restart passed without registration\n";
     } catch (const std::exception& error) { std::cerr<<error.what()<<'\n'; result=1; }
     try { euphony::IpcClient(500,false).call({{"version",1},{"op","shutdown"}}); } catch (...) {}
     FreeLibrary(dll); CoUninitialize(); return result;

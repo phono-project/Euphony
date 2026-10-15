@@ -60,6 +60,7 @@ struct Work {
     std::condition_variable wake;
     std::deque<Json> requests;
     HWND window{};
+    HWND owner{};
     bool stop = false;
     HMODULE pin{};
 };
@@ -68,8 +69,10 @@ struct Work {
 DWORD WINAPI work_thread(void* argument) {
     auto* handle = static_cast<std::shared_ptr<Work>*>(argument);
     std::shared_ptr<Work> state = std::move(*handle); delete handle;
-    IpcClient client;
-    bool launched = false;
+    IpcClient client(2000, false);
+    bool start_allowed = true;
+    const auto pipe = pipe_name();
+    auto broker_absent = [&] { return !WaitNamedPipeW(pipe.c_str(),1) && GetLastError()==ERROR_FILE_NOT_FOUND; };
     std::vector<std::string> sessions;
     for (;;) {
         Json request;
@@ -83,12 +86,15 @@ DWORD WINAPI work_thread(void* argument) {
         if (!session.empty() && std::find(sessions.begin(),sessions.end(),session)==sessions.end()) sessions.push_back(session);
         Json response;
         try {
-            if (!launched) { ensure_broker(); launched = true; }
-            response = client.call(request);
+            if (request.value("_start_broker", false)) start_allowed = true;
+            request.erase("_start_broker");
+            const bool start = start_allowed && request.value("op", std::string{}) == "set_mode" && request.value("active", false);
+            if (start) { start_allowed = false; ensure_broker(); }
+            if (!start && broker_absent()) throw std::runtime_error("Euphony broker is stopped");
+            response = start ? IpcClient(15000, false).call(request) : client.call(request);
         } catch (const std::exception& e) {
             response = { {"session", request.value("session", std::string{})}, {"seq", request.value("seq", std::uint64_t{})},
                 {"generation", 0}, {"error", e.what()}, {"_failed_key", request.value("key", std::string{})} };
-            launched = false;
         }
         response["_op"]=request.value("op",std::string{});
         response["_key"]=request.value("key",std::string{});
@@ -105,7 +111,10 @@ DWORD WINAPI work_thread(void* argument) {
     // Finishing a blocked call and closing its broker state stays off the STA.
     // Deactivation has already detached the destination window and cancelled
     // queued keys, so no response can re-enter a document during cleanup.
+    try { if (!broker_absent()) client.call({{"version",1},{"op","set_mode"},{"chinese",true},{"active",false},
+        {"owner",reinterpret_cast<std::uintptr_t>(state->owner)}}); } catch (...) {}
     for (const auto& session:sessions) {
+        if (broker_absent()) break;
         try { client.call({{"version",1},{"session",session},{"seq",std::numeric_limits<std::uint64_t>::max()},{"op","close"}}); } catch (...) {}
     }
     std::vector<std::string>().swap(sessions);
@@ -114,7 +123,7 @@ DWORD WINAPI work_thread(void* argument) {
     FreeLibraryAndExitThread(pin, 0);
 }
 std::shared_ptr<Work> start_worker(HWND window) {
-    auto state = std::make_shared<Work>(); state->window = window;
+    auto state = std::make_shared<Work>(); state->window = state->owner = window;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(&work_thread), &state->pin)) return {};
     auto* argument = new(std::nothrow) std::shared_ptr<Work>(state);
     if (!argument) { FreeLibrary(state->pin); return {}; }
@@ -180,7 +189,7 @@ public:
 class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     public ITfCompositionSink, public ITfThreadMgrEventSink, public ITfThreadFocusSink,
     public ITfCandidateListUIElementBehavior, public ITfDisplayAttributeProvider,
-    public ITfTextEditSink, public ITfTextLayoutSink {
+    public ITfTextEditSink, public ITfTextLayoutSink, public ITfActiveLanguageProfileNotifySink {
     LONG refs_ = 1;
     ComPtr<ITfThreadMgr> mgr_;
     ComPtr<ITfContext> context_;
@@ -191,6 +200,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     TfClientId client_ = TF_CLIENTID_NULL;
     TfGuidAtom attribute_ = TF_INVALID_GUIDATOM;
     DWORD events_cookie_ = TF_INVALID_COOKIE, focus_cookie_ = TF_INVALID_COOKIE, ui_id_ = TF_INVALID_COOKIE;
+    DWORD profile_cookie_ = TF_INVALID_COOKIE;
     DWORD edit_cookie_ = TF_INVALID_COOKIE, layout_cookie_ = TF_INVALID_COOKIE;
     DWORD activation_{};
     HWND dispatch_{}, popup_{}, mode_popup_{};
@@ -205,6 +215,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     bool full_width_ = false, chinese_punctuation_ = true;
     UINT history_characters_ = 128;
     bool chinese_ = true, active_ = false, focused_ = true, shift_used_ = false;
+    bool profile_active_ = true, keyboard_focus_ = true;
     bool ui_allowed_ = true, pending_ = false, poll_queued_ = false, failed_ = false;
     bool config_queued_ = false, classes_owned_ = false;
     std::wstring preedit_;
@@ -694,8 +705,13 @@ public:
         STARTUPINFOW startup{sizeof(startup)}; PROCESS_INFORMATION process{};
         if (CreateProcessW(path.c_str(),command.data(),nullptr,nullptr,FALSE,0,nullptr,path.parent_path().c_str(),&startup,&process)) { CloseHandle(process.hThread); CloseHandle(process.hProcess); }
     }
+    void notify_mode(bool start_broker = false) {
+        if (worker_ && !(activation_&TF_TMAE_SECUREMODE)) enqueue({{"version",1},{"op","set_mode"},{"chinese",chinese_},
+            {"active",profile_active_ && keyboard_focus_ && focused_},
+            {"owner",reinterpret_cast<std::uintptr_t>(dispatch_)},{"_start_broker",start_broker}});
+    }
     void update_mode() {
-        if (worker_ && !(activation_&TF_TMAE_SECUREMODE)) enqueue({{"version",1},{"op","set_mode"},{"chinese",chinese_}});
+        notify_mode();
         ComPtr<ITfCompartmentMgr> manager; ComPtr<ITfCompartment> field;
         if (mgr_ && SUCCEEDED(mgr_.As(&manager)) && SUCCEEDED(manager->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,&field))) {
             VARIANT value{}; value.vt=VT_I4; value.lVal=chinese_?1:0; field->SetValue(client_,&value);
@@ -711,6 +727,7 @@ public:
         else if (iid==IID_ITfDisplayAttributeProvider) *out=static_cast<ITfDisplayAttributeProvider*>(this);
         else if (iid==IID_ITfTextEditSink) *out=static_cast<ITfTextEditSink*>(this);
         else if (iid==IID_ITfTextLayoutSink) *out=static_cast<ITfTextLayoutSink*>(this);
+        else if (iid==IID_ITfActiveLanguageProfileNotifySink) *out=static_cast<ITfActiveLanguageProfileNotifySink*>(this);
         else if (iid==IID_ITfUIElement || iid==IID_ITfCandidateListUIElement || iid==IID_ITfCandidateListUIElementBehavior) *out=static_cast<ITfCandidateListUIElementBehavior*>(this);
         else return E_NOINTERFACE;
         AddRef(); return S_OK;
@@ -721,7 +738,13 @@ public:
     HRESULT STDMETHODCALLTYPE ActivateEx(ITfThreadMgr* mgr,TfClientId client,DWORD flags) override {
         if (!mgr || mgr_) return E_INVALIDARG;
         if (flags&TF_TMAE_COMLESS) return E_NOTIMPL;
-        mgr_=mgr; client_=client; activation_=flags; rotate();
+        mgr_=mgr; client_=client; activation_=flags; keyboard_focus_=true; profile_active_=false; rotate();
+        BOOL foreground=FALSE; mgr_->IsThreadFocus(&foreground); focused_=foreground!=FALSE;
+        ComPtr<ITfInputProcessorProfileMgr> profiles;
+        TF_INPUTPROCESSORPROFILE current{};
+        if (SUCCEEDED(CoCreateInstance(CLSID_TF_InputProcessorProfiles,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&profiles))) &&
+            SUCCEEDED(profiles->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD,&current)))
+            profile_active_=current.dwProfileType==TF_PROFILETYPE_INPUTPROCESSOR && current.clsid==kService && current.guidProfile==kProfile;
         {
             std::lock_guard lock(class_mutex);
             if (!class_users) {
@@ -738,11 +761,12 @@ public:
         row_=MulDiv(32,dpi,96); pad_=MulDiv(12,dpi,96);
         font_=CreateFontW(-MulDiv(16,dpi,96),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Microsoft YaHei UI");
         worker_=start_worker(dispatch_); if (!worker_) { Deactivate(); return E_FAIL; }
-        config_queued_=enqueue({{"version",1},{"op","get_config"}}); SetTimer(dispatch_,kConfigTimer,1000,nullptr);
+        SetTimer(dispatch_,kConfigTimer,1000,nullptr);
         const char* stage="thread source";
         ComPtr<ITfSource> source; auto hr=mgr_.As(&source);
         if (SUCCEEDED(hr)) { stage="document event sink"; hr=source->AdviseSink(IID_ITfThreadMgrEventSink,static_cast<ITfThreadMgrEventSink*>(this),&events_cookie_); }
         if (SUCCEEDED(hr)) { stage="thread focus sink"; hr=source->AdviseSink(IID_ITfThreadFocusSink,static_cast<ITfThreadFocusSink*>(this),&focus_cookie_); }
+        if (SUCCEEDED(hr)) { stage="profile activation sink"; hr=source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink,static_cast<ITfActiveLanguageProfileNotifySink*>(this),&profile_cookie_); }
         ComPtr<ITfKeystrokeMgr> keys;
         if (SUCCEEDED(hr)) { stage="keystroke manager"; hr=mgr_.As(&keys); }
         if (SUCCEEDED(hr)) { stage="key event sink"; hr=keys->AdviseKeyEventSink(client_,this,TRUE); }
@@ -754,7 +778,7 @@ public:
         if (langbar_) { button_.Attach(new(std::nothrow) LanguageButton(this)); if (button_) langbar_->AddItem(button_.Get()); }
         ComPtr<ITfDocumentMgr> document; if (SUCCEEDED(mgr_->GetFocus(&document)) && document) { ComPtr<ITfContext> context; document->GetTop(&context); focus_context(context.Get()); }
         if (FAILED(hr)) { std::fprintf(stderr,"Euphony TSF activation: %s failed (0x%08lx)\n",stage,static_cast<unsigned long>(hr)); Deactivate(); return hr; }
-        update_mode(); return S_OK;
+        update_mode(); config_queued_=enqueue({{"version",1},{"op","get_config"}}); return S_OK;
     }
     HRESULT STDMETHODCALLTYPE Deactivate() override {
         if (!mgr_) return S_OK;
@@ -767,8 +791,9 @@ public:
         if (SUCCEEDED(mgr_.As(&source))) {
             if (events_cookie_!=TF_INVALID_COOKIE) source->UnadviseSink(events_cookie_);
             if (focus_cookie_!=TF_INVALID_COOKIE) source->UnadviseSink(focus_cookie_);
+            if (profile_cookie_!=TF_INVALID_COOKIE) source->UnadviseSink(profile_cookie_);
         }
-        events_cookie_=focus_cookie_=TF_INVALID_COOKIE;
+        events_cookie_=focus_cookie_=profile_cookie_=TF_INVALID_COOKIE;
         if (langbar_ && button_) langbar_->RemoveItem(button_.Get());
         if (button_) button_->detach(); button_.Reset(); langbar_.Reset(); ui_.Reset(); mgr_.Reset(); client_=TF_CLIENTID_NULL;
         if (dispatch_) { MSG message{}; while (PeekMessageW(&message,dispatch_,kReply,kReplay,PM_REMOVE)) { if (message.message==kReply) delete reinterpret_cast<Json*>(message.lParam); else delete reinterpret_cast<Replay*>(message.lParam); } DestroyWindow(dispatch_); dispatch_=nullptr; }
@@ -781,7 +806,14 @@ public:
         config_queued_=false;
         return S_OK;
     }
-    HRESULT STDMETHODCALLTYPE OnSetFocus(BOOL foreground) override { if (!foreground) cancel(); return S_OK; }
+    HRESULT STDMETHODCALLTYPE OnSetFocus(BOOL foreground) override { keyboard_focus_=foreground!=FALSE; if (!foreground) cancel(); notify_mode(); return S_OK; }
+    HRESULT STDMETHODCALLTYPE OnActivated(REFCLSID clsid, REFGUID profile, BOOL activated) override {
+        if (clsid!=kService || profile!=kProfile) return S_OK;
+        const bool start=activated && !profile_active_;
+        profile_active_=activated!=FALSE;
+        if (!profile_active_) cancel();
+        notify_mode(start); return S_OK;
+    }
     HRESULT STDMETHODCALLTYPE OnTestKeyDown(ITfContext* context,WPARAM vk,LPARAM flags,BOOL* eaten) override {
         if (!eaten) return E_POINTER; *eaten=FALSE;
         if (flags&kReplayMark) return S_OK;
@@ -842,7 +874,7 @@ public:
     HRESULT STDMETHODCALLTYPE OnPushContext(ITfContext* context) override { ComPtr<ITfDocumentMgr> doc,current; if (mgr_) mgr_->GetFocus(&doc); context->GetDocumentMgr(&current); if (doc.Get()==current.Get()) focus_context(context); return S_OK; }
     HRESULT STDMETHODCALLTYPE OnPopContext(ITfContext* context) override { if (context_.Get()==context) { ComPtr<ITfDocumentMgr> doc; ComPtr<ITfContext> top; if (mgr_) mgr_->GetFocus(&doc); if (doc) doc->GetTop(&top); focus_context(top.Get()==context?nullptr:top.Get()); } return S_OK; }
     HRESULT STDMETHODCALLTYPE OnSetThreadFocus() override { focused_=true; update_mode(); return S_OK; }
-    HRESULT STDMETHODCALLTYPE OnKillThreadFocus() override { focused_=false; if (mode_popup_) ShowWindow(mode_popup_,SW_HIDE); cancel(); return S_OK; }
+    HRESULT STDMETHODCALLTYPE OnKillThreadFocus() override { focused_=false; notify_mode(); if (mode_popup_) ShowWindow(mode_popup_,SW_HIDE); cancel(); return S_OK; }
     HRESULT STDMETHODCALLTYPE OnEndEdit(ITfContext* context,TfEditCookie,ITfEditRecord* record) override {
         if (context!=context_.Get()) return S_OK;
         BOOL own{};
