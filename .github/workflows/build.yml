@@ -79,6 +79,10 @@ jobs:
         run: pixi run python tools/workflow.py test
       - name: Package from clean staging
         run: pixi run python tools/workflow.py package
+      - name: Build Inno Setup installer
+        run: pixi run python tools/workflow.py installer
+      - name: Validate installer, upgrade and uninstaller on the disposable runner
+        run: pixi run python tools/installer_test.py
       - name: Download the fixed release model
         if: github.event_name == 'release' || inputs.release_checks == true
         run: pixi run python tools/download_models.py
@@ -91,7 +95,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: euphony-windows-x64
-          path: dist/Euphony-*-windows-x64.zip
+          path: |
+            dist/Euphony-*-windows-x64.zip
+            dist/Euphony-*-windows-x64-setup.exe
           if-no-files-found: error
 
       - name: Preserve verification diagnostics
@@ -114,6 +120,7 @@ jobs:
             build/test-results/settings/*.json
             build/test-results/settings/*.png
             build/test-results/temporary-smoke/**
+            build/test-results/installer/**
           if-no-files-found: warn
           retention-days: 7
 
@@ -128,10 +135,10 @@ jobs:
         with:
           name: euphony-windows-x64
           path: dist
-      - name: Attach validated ZIP to the published Release
+      - name: Attach validated ZIP and installer to the published Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         shell: pwsh
-        run: gh release upload $env:RELEASE_TAG dist/*.zip --clobber
+        run: gh release upload $env:RELEASE_TAG dist/*.zip dist/*-setup.exe --clobber

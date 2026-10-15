@@ -4,9 +4,23 @@
 
 ## 架构与交付 / Architecture and distribution
 
-x64 和 x86 应用通过各自的 TSF 前端连接同一个 x64 后台，后台调用 phono-core 生成模型候选。设置界面使用 WebView2。当前交付物为 portable ZIP 包，需通过管理脚本注册输入法。
+x64 和 x86 应用通过各自的 TSF 前端连接同一个 x64 后台，后台调用 phono-core 生成模型候选。设置界面使用 WebView2。交付物为 Inno Setup EXE 安装包和 portable ZIP 包；前者自动完成注册与卸载，后者通过管理脚本注册输入法。
 
-TSF frontends for x64 and x86 applications connect to one x64 broker, which calls phono-core to generate model candidates. Settings use WebView2. The current distribution is a portable ZIP package that requires registration through the management script.
+TSF frontends for x64 and x86 applications connect to one x64 broker, which calls phono-core to generate model candidates. Settings use WebView2. Distribution includes an Inno Setup EXE installer with registration and uninstallation, plus a portable ZIP registered through the management script.
+
+## 安装包构建与验证 / Installer build and validation
+
+安装 Inno Setup 6.3+ 后运行 `pixi run installer`，复用 `package` 的干净载荷，同时保留 ZIP。已打包时可运行 `pixi run python tools/workflow.py installer`，通过 `--iscc` 指定编译器路径；省略时从 PATH 或 Inno Setup 6 默认目录查找。CI 使用 Windows runner 预装的 Inno Setup 6。
+
+Install Inno Setup 6.3+ and run `pixi run installer` to reuse the clean `package` payload and retain the ZIP. After packaging, run `pixi run python tools/workflow.py installer`; use `--iscc` to specify the compiler path, or omit it to search PATH and the default Inno Setup 6 directory. CI uses the Windows runner's preinstalled Inno Setup 6.
+
+`installer/Euphony.iss` 使用 `regserver` 和明确的 `64bit` / `32bit` 标记调用已有 TSF DLL 入口，安装和卸载不启动 PowerShell。安装器要求在同一账户下提权，记录现有 `HKCU\Software\Euphony` 发现路径。覆盖安装沿用原目录；文件占用时由 Inno 安排重启替换与注册，卸载可延迟到重启删除占用文件。用户配置和模型不属于安装器载荷。
+
+`installer/Euphony.iss` uses `regserver` with explicit `64bit` / `32bit` flags to call existing TSF DLL entry points, without launching PowerShell during installation or removal. Elevate under the same account; the installer records the existing `HKCU\Software\Euphony` discovery paths. Upgrades keep the installation directory. Inno schedules locked-file replacement and registration for restart, and can defer deletion of locked files until restart. User preferences and models are outside the installer payload.
+
+CI 在一次性 Windows runner 上运行 `pixi run python tools/installer_test.py`：静默安装到含空格与中文的目录，逐文件对比载荷，检查两种 COM / TSF 注册及 Windows 卸载入口，覆盖安装后运行隔离后台冒烟测试，再卸载并检查注册清理和配置、学习数据保留。日志与结果在 `build/test-results/installer/`。该测试会修改机器注册，要求管理员权限，并拒绝在已有 Euphony 注册的机器上运行。
+
+CI runs `pixi run python tools/installer_test.py` on its disposable Windows runner: silently install into a path containing spaces and Chinese characters, compare every payload file, check both COM / TSF registrations and the Windows uninstall entry, reinstall, run isolated broker smoke checks, then uninstall and verify registration cleanup and retention of preferences and learning data. Logs and results are in `build/test-results/installer/`. This test changes machine registrations, requires elevation, and refuses hosts with an existing Euphony registration.
 
 ## 候选生成策略 / Candidate generation
 
@@ -16,9 +30,9 @@ Dictionary candidates return first, followed asynchronously by model candidates.
 
 ## 验证范围 / Validation scope
 
-测试分为日常检查、发布验证和桌面交互三个部分，均复用本仓库脚本。自动验证使用隔离用户配置和管道，不注册输入法，也不修改日常配置；模型通过参数或环境变量传入。
+测试包括日常检查、安装器生命周期、发布验证和桌面交互，均复用本仓库脚本。日常与桌面验证使用隔离用户配置和管道；安装器检查在一次性 runner 上注册并卸载输入法。模型通过参数或环境变量传入。
 
-Validation has three parts: routine checks, release validation, and desktop interaction, all using this repository’s scripts. Automated checks use isolated user preferences and pipes, without registering the input method or changing daily settings. Models are supplied by arguments or environment variables.
+Validation includes routine checks, installer lifecycle, release validation, and desktop interaction, all using this repository’s scripts. Routine and desktop checks use isolated user preferences and pipes. Installer checks register and remove the input method on a disposable runner. Models are supplied by arguments or environment variables.
 
 ## 日常检查 / Routine checks
 
@@ -65,13 +79,13 @@ pixi run python tools/workflow.py build --core-sdk C:\SDKs\phono-core
 
 After updating the pinned core SDK dependency, validate and release Euphony separately; core releases do not automatically publish Euphony.
 
-`pixi.toml` 的 workspace 版本为唯一来源，CMake、资源文件、管理脚本、包目录和 ZIP 均读取该版本。Release 使用 `vX.Y.Z` 标签并校验标签与包版本一致。创建标签并发布对应 GitHub Release 后，`release.published` 检出标签，再构建、测试、打包和上传；正式版与预发布使用同一路径，仅推送标签不触发。上传任务单独授予写权限。
+`pixi.toml` 的 workspace 版本为唯一来源，CMake、资源文件、管理脚本、包目录、ZIP 和 EXE 安装包均读取该版本。Release 使用 `vX.Y.Z` 标签并校验标签与包版本一致。创建标签并发布对应 GitHub Release 后，`release.published` 检出标签，再构建、测试、打包和上传；正式版与预发布使用同一路径，仅推送标签不触发。上传任务单独授予写权限。
 
-The workspace version in `pixi.toml` is the single source read by CMake, resources, manager scripts, package directory, and ZIP. Releases use `vX.Y.Z` tags and validate matching tag and package versions. Create the tag and publish its GitHub Release; `release.published` checks out the tag, then builds, tests, packages, and uploads. Stable releases and prereleases share this path, while pushing a tag alone does not trigger it. Write permission is granted separately to the upload job.
+The workspace version in `pixi.toml` is the single source read by CMake, resources, manager scripts, package directory, ZIP, and EXE installer. Releases use `vX.Y.Z` tags and validate matching tag and package versions. Create the tag and publish its GitHub Release; `release.published` checks out the tag, then builds, tests, packages, and uploads. Stable releases and prereleases share this path, while pushing a tag alone does not trigger it. Write permission is granted separately to the upload job.
 
-手动入口的 `release_checks` 可执行真实模型和解压 ZIP 验证，`clean_dependencies` 可跳过依赖缓存以验证首次构建，`desktop_checks` 可在适合的桌面环境运行交互检查。检查产物保存在 Actions；只有已发布 Release 的执行向 Release 上传附件。
+手动入口的 `release_checks` 可执行真实模型和解压 ZIP 验证，`clean_dependencies` 可跳过依赖缓存以验证首次构建，`desktop_checks` 可在适合的桌面环境运行交互检查。ZIP 与 EXE 检查产物均保存在 Actions；只有已发布 Release 的执行向 Release 上传两种附件。
 
-The manual entry point’s `release_checks` runs real-model and extracted-ZIP validation, `clean_dependencies` skips dependency caches to check a first build, and `desktop_checks` runs interaction checks in a suitable desktop environment. Checked artifacts are retained in Actions. Only published Release runs attach them to a Release.
+The manual entry point’s `release_checks` runs real-model and extracted-ZIP validation, `clean_dependencies` skips dependency caches to check a first build, and `desktop_checks` runs interaction checks in a suitable desktop environment. Both ZIP and EXE artifacts are retained in Actions. Only published Release runs attach both to a Release.
 
 打包每次从干净的暂存目录开始，包含两个 TSF、后台、设置、core、词库、KenLM、装卸脚本、版本及许可证。Release 验证解压 ZIP 后运行真实模型的加载和推理，模型缺失或不完整会失败。模型包不随 ZIP 发布。
 

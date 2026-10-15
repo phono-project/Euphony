@@ -39,9 +39,27 @@ def package():
                 output.write(file, file.relative_to(PACKAGE.parent))
     print(f"Package: {PACKAGE}\nArchive: {archive}")
 
+def installer(compiler=None):
+    if not (PACKAGE / "VERSION").is_file() or (PACKAGE / "VERSION").read_text(encoding="utf-8").strip() != VERSION:
+        raise RuntimeError("Build the current portable package before the installer.")
+    if not compiler:
+        compiler = shutil.which("ISCC.exe")
+    if not compiler:
+        compiler = Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "Inno Setup 6/ISCC.exe"
+    if not Path(compiler).is_file():
+        raise RuntimeError("Install Inno Setup 6.3 or newer, or pass --iscc PATH to ISCC.exe.")
+    output = ROOT / "dist" / f"{PACKAGE_NAME}-setup.exe"
+    output.unlink(missing_ok=True)
+    run(str(compiler), f"/DAppVersion={VERSION}", f"/DPackageDir={PACKAGE}",
+        f"/DOutputDir={ROOT / 'dist'}", str(ROOT / "installer/Euphony.iss"))
+    if not output.is_file():
+        raise RuntimeError(f"Installer compiler did not produce {output}")
+    print(f"Installer: {output}")
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("build", "test", "package", "verify", "desktop", "release"))
+    parser.add_argument("action", choices=("build", "test", "package", "installer", "verify", "desktop", "release"))
+    parser.add_argument("--iscc", type=Path, help="Path to the Inno Setup 6 compiler")
     parser.add_argument("--core-sdk", type=Path, default=os.environ.get("PHONO_CORE_SDK_DIR"))
     parser.add_argument("--model-dir", type=Path, default=os.environ.get("PHONO_TEST_MODEL_DIR"))
     args = parser.parse_args()
@@ -58,6 +76,8 @@ def main():
             "tests/registration_process_tests.ps1", "-ToolsDirectory", str(ROOT / "tools"))
     elif args.action == "package":
         package()
+    elif args.action == "installer":
+        installer(args.iscc)
     elif args.action == "desktop":
         for tool in ("ui_test", "tray_test"):
             run(sys.executable, f"tools/{tool}.py", "--bin-dir", str(PACKAGE))

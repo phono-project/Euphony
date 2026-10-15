@@ -17,6 +17,7 @@ setup = "python tools/setup.py"
 build = { cmd = "python tools/workflow.py build", depends-on = ["setup"] }
 test = { cmd = "python tools/workflow.py test", depends-on = ["build"] }
 package = { cmd = "python tools/workflow.py package", depends-on = ["build"] }
+installer = { cmd = "python tools/workflow.py installer", depends-on = ["package"] }
 verify = { cmd = "python tools/workflow.py verify", depends-on = ["package"] }
 settings = "powershell -NoProfile -ExecutionPolicy Bypass -File tools/manage.ps1 Settings"
 broker = "powershell -NoProfile -ExecutionPolicy Bypass -File tools/manage.ps1 Start"

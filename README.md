@@ -4,11 +4,29 @@ Euphony 是适用于 Windows 10（1903+）和 Windows 11 的中文输入法，�
 
 Euphony is a Chinese input method for Windows 10 (1903+) and Windows 11, supporting Pinyin and seven Shuangpin schemes. It offers dictionary candidates alongside sentence candidates generated from preceding text, so you can select words individually or commit a whole sentence.
 
+## 安装包安装 / Installer installation
+
+从 [GitHub Releases](https://github.com/phono-project/Euphony/releases) 下载 `Euphony-<version>-windows-x64-setup.exe` 并运行安装向导。安装器支持 Windows 10（1903+）和 Windows 11 x64，自动注册 x64 与 x86 输入法，添加开始菜单设置入口及 Windows「已安装的应用」卸载入口。安装和卸载不调用 PowerShell。
+
+Download `Euphony-<version>-windows-x64-setup.exe` from [GitHub Releases](https://github.com/phono-project/Euphony/releases) and run the wizard. It supports Windows 10 (1903+) and Windows 11 x64, registers the input method for x64 and x86 applications, and adds Start menu settings and Windows Installed apps uninstall entries. Installation and removal do not invoke PowerShell.
+
+安装需要管理员权限，请使用准备使用输入法的同一 Windows 账户批准提权。安装前保存输入内容，退出旧设置窗口及托盘中的 Euphony。安装后按提示重启；未提示重启时，注销再登录。按 `Win+Space` 选择 Euphony，从开始菜单打开 **Euphony Settings**。设置需要下方链接的 WebView2 Runtime，整句候选的模型需单独下载。
+
+Administrator privileges are required; approve elevation under the Windows account that will use Euphony. Save any composition and exit the old settings window and Euphony tray first. Restart if prompted; otherwise sign out and back in. Select Euphony with `Win+Space` and open **Euphony Settings** from Start. Settings require the WebView2 Runtime linked below; download the sentence model separately.
+
+更新时直接运行新版本安装包，沿用原目录。卸载时先退出设置和托盘程序，在 Windows「已安装的应用」中卸载 Euphony，然后重启以释放应用载入的 TSF DLL。配置、学习数据和单独下载的模型保留。
+
+To update, run the new installer over the existing directory. To uninstall, exit settings and the tray, remove Euphony through Windows Installed apps, then restart to unload TSF DLLs. Preferences, learned vocabulary, and separately downloaded models are retained.
+
+从便携版切换时，先按下方便携版步骤卸载注册、注销再登录，再运行安装包。若旧配置中的 core、词库或 KenLM 路径指向便携目录，请在设置中改为新安装目录内的 `phono_core.dll`、`data/libime.tsv` 和 `data/zh_CN.lm`，再删除旧目录。
+
+To switch from portable, unregister it using the removal steps below, sign out and back in, then run the installer. If saved core, dictionary, or KenLM paths point to the portable directory, change them in Settings to `phono_core.dll`, `data/libime.tsv`, and `data/zh_CN.lm` in the new installation before deleting the old directory.
+
 ## Portable 包安装 / Portable package installation
 
-当前版本以 portable ZIP 包提供，以下步骤适用于便携包；便携包仍需运行注册命令，将输入法添加到 Windows。
+同时提供 portable ZIP 包，以下步骤适用于便携包；便携包仍需运行注册命令，将输入法添加到 Windows。
 
-The current release is a portable ZIP package; the steps below apply to that package. The portable package still requires a registration command to add the input method to Windows.
+A portable ZIP package is also available; the steps below apply to that package. The portable package still requires a registration command to add the input method to Windows.
 
 从 [GitHub Releases](https://github.com/phono-project/Euphony/releases) 下载 `Euphony-<version>-windows-x64.zip`，解压到准备长期保留的目录。需要 64 位 Windows，可在 x64 和 x86 应用中使用。整句候选使用的 Phono 模型需单独下载，见下方模型配置。
 
@@ -141,6 +159,10 @@ pixi run verify
 贡献代码前运行相关检查。依赖来源、词典行为和图标说明见 [THIRD_PARTY.md](THIRD_PARTY.md)、[data/README.md](data/README.md) 和 [img/README.md](img/README.md)。
 
 Run relevant checks before contributing. Dependency provenance, dictionary behavior, and artwork are documented in [THIRD_PARTY.md](THIRD_PARTY.md), [data/README.md](data/README.md), and [img/README.md](img/README.md).
+
+安装 [Inno Setup 6.3+](https://jrsoftware.org/isdl.php) 后运行 `pixi run installer`，可额外生成 `dist/Euphony-<version>-windows-x64-setup.exe`，同时保留便携 ZIP。CI 自动构建、验证并保存两种产物，发布 Release 时上传两者。
+
+With [Inno Setup 6.3+](https://jrsoftware.org/isdl.php) installed, run `pixi run installer` to also create `dist/Euphony-<version>-windows-x64-setup.exe`, retaining the portable ZIP. CI builds, validates, and saves both formats, and attaches both to published Releases.
 
 ## 许可证 / License
 
