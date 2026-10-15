@@ -1,6 +1,20 @@
-# 验证与发布 / Validation and releases
+# 开发、验证与发布 / Development, validation, and releases
 
 [安装与使用 / Installation and usage](../README.md)
+
+## 架构与交付 / Architecture and distribution
+
+x64 和 x86 应用通过各自的 TSF 前端连接同一个 x64 后台，后台调用 phono-core 生成模型候选。设置界面使用 WebView2。当前交付物为 portable ZIP 包，需通过管理脚本注册输入法。
+
+TSF frontends for x64 and x86 applications connect to one x64 broker, which calls phono-core to generate model candidates. Settings use WebView2. The current distribution is a portable ZIP package that requires registration through the management script.
+
+## 候选生成策略 / Candidate generation
+
+词典候选先返回，模型候选异步补充；用户开始浏览候选后，该轮列表停止更新。默认开启的 `prefer_unigram_single_syllable` 在无上文且仅有一个完整音节时优先使用 KenLM 单字词频；有上文、连续拼音或关闭选项时使用模型。KenLM 不可用时回到通常的候选生成流程。模型未配置、禁用或加载失败时保留词典候选。
+
+Dictionary candidates return first, followed asynchronously by model candidates. Once the user starts browsing, the list stops updating for that composition. The default `prefer_unigram_single_syllable` option prefers KenLM single-character frequency for one complete syllable without context. Contextual input, continuous pinyin, or disabling the option uses the model. If KenLM is unavailable, the usual candidate generation path applies. Dictionary candidates remain available if the model is unconfigured, disabled, or fails to load.
+
+## 验证范围 / Validation scope
 
 测试分为日常检查、发布验证和桌面交互三个部分，均复用本仓库脚本。自动验证使用隔离用户配置和管道，不注册输入法，也不修改日常配置；模型通过参数或环境变量传入。
 
@@ -46,6 +60,10 @@ pixi run python tools/workflow.py build --core-sdk C:\SDKs\phono-core
 ```
 
 ## 发布验证 / Release validation
+
+更新固定的 core SDK 依赖后，需在 Euphony 仓库运行验证并单独发布；core 发布不自动触发 Euphony 发布。
+
+After updating the pinned core SDK dependency, validate and release Euphony separately; core releases do not automatically publish Euphony.
 
 `pixi.toml` 的 workspace 版本为唯一来源，CMake、资源文件、管理脚本、包目录和 ZIP 均读取该版本。Release 使用 `vX.Y.Z` 标签并校验标签与包版本一致。创建标签并发布对应 GitHub Release 后，`release.published` 检出标签，再构建、测试、打包和上传；正式版与预发布使用同一路径，仅推送标签不触发。上传任务单独授予写权限。
 
