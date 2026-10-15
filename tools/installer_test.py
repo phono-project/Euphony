@@ -43,7 +43,8 @@ def require(condition, message):
 
 def main():
     require(ctypes.windll.shell32.IsUserAnAdmin(), "Installer tests require an elevated Windows host.")
-    require(not exists(winreg.HKEY_CURRENT_USER, r"Software\Euphony") and
+    require(value(winreg.HKEY_CURRENT_USER, r"Software\Euphony", "InstallDir") is None and
+            value(winreg.HKEY_CURRENT_USER, r"Software\Euphony", "X86DllPath") is None and
             not exists(winreg.HKEY_LOCAL_MACHINE, UNINSTALL) and
             not any(exists(winreg.HKEY_LOCAL_MACHINE, path, view)
                     for path in (CLSID, TIP) for view in VIEWS),
