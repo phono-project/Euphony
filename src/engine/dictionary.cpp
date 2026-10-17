@@ -173,8 +173,7 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
     visit(full_, false);
     if (normalized.size() <= 12 && boundaries.empty()) visit(initials_, true);
     std::stable_sort(results.begin(), results.end(), [this](const auto& a, const auto& b) {
-        if (frequency(a.pinyin,a.text) != frequency(b.pinyin,b.text))
-            return frequency(a.pinyin,a.text) > frequency(b.pinyin,b.text);
+        if (priority(a) != priority(b)) return priority(a) > priority(b);
         if (a.complete != b.complete) return a.complete;
         if (a.consumed != b.consumed) return a.consumed > b.consumed;
         return a.score > b.score;
@@ -230,8 +229,7 @@ std::vector<DictionaryCandidate> Dictionary::lookup(std::string_view raw, size_t
         if (beam.words > 1) combined.push_back({beam.text, beam.pinyin, raw.size(), beam.score, true});
     result.insert(result.begin(),combined.begin(),combined.end());
     std::stable_sort(result.begin(), result.end(), [this](const auto& a, const auto& b) {
-        if (frequency(a.pinyin,a.text) != frequency(b.pinyin,b.text))
-            return frequency(a.pinyin,a.text) > frequency(b.pinyin,b.text);
+        if (priority(a) != priority(b)) return priority(a) > priority(b);
         if (!languageModel_) return false;
         if (a.complete != b.complete) return a.complete;
         if (a.consumed != b.consumed) return a.consumed > b.consumed;
@@ -252,6 +250,10 @@ void Dictionary::learn(std::string_view pinyin, std::string_view text) {
 uint32_t Dictionary::frequency(std::string_view pinyin, std::string_view text) const {
     const auto it = learned_.find(std::string(pinyin) + "\t" + std::string(text));
     return it == learned_.end() ? 0 : it->second;
+}
+uint32_t Dictionary::priority(const DictionaryCandidate& candidate) const {
+    if (!candidate.complete && utf8Tail(candidate.text,1) == candidate.text) return 0;
+    return frequency(candidate.pinyin,candidate.text);
 }
 void Dictionary::forget(std::string_view pinyin, std::string_view text) {
     learned_.erase(std::string(pinyin) + "\t" + std::string(text));

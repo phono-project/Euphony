@@ -180,7 +180,8 @@ struct Engine::Impl {
             auto previous=candidateSnapshot(state);state.candidates.clear();
             std::unordered_set<std::string> seen;
             for (const auto& candidate : state.dictionary)
-                if (candidate.user && seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
+                if (candidate.user && (candidate.consumed == state.raw.size() || utf8Tail(candidate.commit,1) != candidate.commit) &&
+                    seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
             for (const auto& decoded : completion.result.candidates) {
                 auto presentation = presentCandidate(decoded, completion.result.invalid,
                     config.value("invalid_input", "pass") == "delete" ? InvalidInputPolicy::Delete : InvalidInputPolicy::PassThrough);
@@ -294,8 +295,7 @@ struct Engine::Impl {
             }
         }
         std::stable_sort(all.begin(), all.end(), [this](const auto& a,const auto& b) {
-            if (dictionary->frequency(a.pinyin,a.text) != dictionary->frequency(b.pinyin,b.text))
-                return dictionary->frequency(a.pinyin,a.text) > dictionary->frequency(b.pinyin,b.text);
+            if (dictionary->priority(a) != dictionary->priority(b)) return dictionary->priority(a) > dictionary->priority(b);
             if (a.complete != b.complete) return a.complete;
             if (a.consumed != b.consumed) return a.consumed > b.consumed;
             return a.score > b.score;

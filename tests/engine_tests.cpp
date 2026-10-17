@@ -301,8 +301,25 @@ int main() {
             check(!incomplete.empty() && incomplete[0].text=="你好","completion extends only the last entered syllable");
             for(const auto& proposal:incomplete)check(proposal.text!="你好吗","completion does not invent another syllable");
         }
+        for (const auto& mode : {"pinyin", "shuangpin"}) {
+            const auto directory=temp/(std::string("single-memory-")+mode);
+            Dictionary personal(fixture);personal.learn("ni","倪");personal.saveLearning(directory/"learning.json");
+            auto settings=config;settings["user_directory"]=directory.string();settings["input_mode"]=mode;
+            settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["core_library"]="test-inference";
+            Engine engine(settings,[](const Request&) {Result result;result.ready=true;result.candidates={"模型整句"};return result;});
+            Client client{engine,"single-memory"};auto answer=client.type(std::string(mode)=="pinyin" ? "nihaoma" : "nihcma");
+            check(answer["candidates"][0]["text"]!="倪","single memory does not lead before inference");
+            const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+            while(answer["pending"]==true && std::chrono::steady_clock::now()<deadline) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));answer=client.request("poll");
+            }
+            check(answer["candidates"][0]["text"]=="模型整句","single memory stays behind model for longer input");
+        }
         {
             Dictionary personal(fixture);
+            personal.learn("ni","倪");
+            check(personal.lookup("ni")[0].text=="倪","single-character memory leads for single-syllable input");
+            check(personal.lookup("nihaoma")[0].text!="倪","single-character memory does not lead for longer input");
             personal.learn("ni'hao'ma","你好吗");
             check(personal.lookup("nihaoma")[0].text=="你好吗","new explicit dictionary phrase is reusable");
             auto personalFile=temp/"personal.json";

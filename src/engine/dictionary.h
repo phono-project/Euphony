@@ -26,6 +26,7 @@ public:
     size_t size() const { return entries_.size(); }
     void learn(std::string_view pinyin, std::string_view text);
     uint32_t frequency(std::string_view pinyin, std::string_view text) const;
+    uint32_t priority(const DictionaryCandidate& candidate) const;
     void forget(std::string_view pinyin, std::string_view text);
     void loadLearning(const std::filesystem::path& file);
     void saveLearning(const std::filesystem::path& file) const;
