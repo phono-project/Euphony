@@ -23,7 +23,7 @@ nlohmann::json default_config() {
     return {{"schema_version", 1}, {"model_directory", path_string(model)}, {"core_library", path_string(core)},
         {"dictionary_path", path_string(bin / L"data/libime.tsv")}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
         {"prefer_unigram_single_syllable", true}, {"input_mode", "pinyin"}, {"shuangpin_scheme", "xiaohe"},
-        {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"user_candidate_color", "#FF0000"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
+        {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"user_candidate_color", "#FBE4EC"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
         {"learning", true}, {"chinese_punctuation", true}, {"full_width", false}, {"invalid_input", "pass"}, {"context_slots", 4}, {"user_directory", path_string(user_directory())},
         {"engine", {{"schema_version", "1.0"}, {"tokenizer", {{"normalization", {{"lowercase_ascii", true},
             {"normalize_v_to_u", true}, {"separators", "'"}}}, {"segment_mode", "safe"}, {"use_segmenter", true},

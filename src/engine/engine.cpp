@@ -541,7 +541,7 @@ struct Engine::Impl {
             {"selection",state.selection},{"page",state.selection/pageSize()},{"page_size",pageSize()},
             {"candidate_layout",config.value("candidate_layout", "vertical")},
             {"model_candidate_color",config.value("model_candidate_color", "#DFF2E5")},
-            {"user_candidate_color",config.value("user_candidate_color", "#FF0000")},
+            {"user_candidate_color",config.value("user_candidate_color", "#FBE4EC")},
             {"generation",state.generation},{"candidate_generation",state.candidateGeneration},{"candidate_source",state.candidateSource},
             {"pending",state.pending},{"error",state.error}};
     }

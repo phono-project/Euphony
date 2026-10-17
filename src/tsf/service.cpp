@@ -205,7 +205,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     DWORD activation_{};
     HWND dispatch_{}, popup_{}, mode_popup_{};
     COLORREF model_color_ = RGB(223,242,229);
-    COLORREF user_color_ = RGB(255,0,0);
+    COLORREF user_color_ = RGB(251,228,236);
     HFONT font_{};
     std::shared_ptr<Work> worker_;
     std::string session_;
@@ -489,7 +489,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         selection_=std::min(static_cast<UINT>(std::max(0,value.value("selection",0))),candidates_.empty()?0u:static_cast<UINT>(candidates_.size()-1));
         page_size_=static_cast<UINT>(std::clamp(value.value("page_size",5),1,10));
         horizontal_=value.value("candidate_layout","vertical")=="horizontal";
-        const auto userColor=value.value("user_candidate_color",std::string{"#FF0000"});
+        const auto userColor=value.value("user_candidate_color",std::string{"#FBE4EC"});
         if (userColor.size()==7 && userColor.front()=='#' && userColor.find_first_not_of("0123456789abcdefABCDEF",1)==std::string::npos) {
             const auto rgb=std::stoul(userColor.substr(1),nullptr,16);
             user_color_=RGB((rgb>>16)&255,(rgb>>8)&255,rgb&255);
@@ -612,15 +612,15 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             const auto cell=candidate_cells_[i-begin]; const auto saved=SaveDC(dc);
             IntersectClipRect(dc,cell.left,cell.top,cell.right,cell.bottom);
             auto y=static_cast<int>(cell.top);
-            if (candidates_[i].model || i==selection_) {
-                auto brush=CreateSolidBrush(candidates_[i].model?model_color_:RGB(226,234,255)); FillRect(dc,&cell,brush); DeleteObject(brush);
+            if (candidates_[i].user || candidates_[i].model || i==selection_) {
+                auto brush=CreateSolidBrush(candidates_[i].user?user_color_:(candidates_[i].model?model_color_:RGB(226,234,255))); FillRect(dc,&cell,brush); DeleteObject(brush);
             }
             if (i==selection_) { auto brush=CreateSolidBrush(RGB(96,126,185)); FrameRect(dc,&cell,brush); DeleteObject(brush); }
             auto label=std::to_wstring((i-begin+1)%10)+L"  ";
             int x=cell.left+pad_/2; SetTextColor(dc,RGB(45,49,70)); TextOutW(dc,x,y,label.data(),static_cast<int>(label.size())); SIZE size{}; GetTextExtentPoint32W(dc,label.data(),static_cast<int>(label.size()),&size); x+=size.cx;
             IntersectClipRect(dc,cell.left,cell.top,cell.right-pad_/2,cell.bottom);
             auto draw=[&](std::wstring_view text,bool deleted) {
-                SetTextColor(dc,deleted?RGB(155,158,170):(candidates_[i].user?user_color_:RGB(30,34,56))); TextOutW(dc,x,y,text.data(),static_cast<int>(text.size()));
+                SetTextColor(dc,deleted?RGB(155,158,170):RGB(30,34,56)); TextOutW(dc,x,y,text.data(),static_cast<int>(text.size()));
                 GetTextExtentPoint32W(dc,text.data(),static_cast<int>(text.size()),&size);
                 if (deleted) { auto pen=CreatePen(PS_SOLID,1,RGB(155,158,170)); auto oldpen=SelectObject(dc,pen); MoveToEx(dc,x,y+row_/3,nullptr); LineTo(dc,x+size.cx,y+row_/3); SelectObject(dc,oldpen); DeleteObject(pen); }
                 x+=size.cx;
