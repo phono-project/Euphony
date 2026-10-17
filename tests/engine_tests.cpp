@@ -301,6 +301,35 @@ int main() {
             check(!incomplete.empty() && incomplete[0].text=="你好","completion extends only the last entered syllable");
             for(const auto& proposal:incomplete)check(proposal.text!="你好吗","completion does not invent another syllable");
         }
+        for (const auto& mode : {"pinyin", "shuangpin"}) for (bool enabled : {false,true}) for (bool first : {false,true}) {
+            const auto directory=temp/(std::string("user-options-")+mode+(enabled?"-on":"-off")+(first?"-first":"-after"));
+            Dictionary personal(fixture);personal.learn("ni'hao'ma","倪好嘛");personal.saveLearning(directory/"learning.json");
+            auto settings=config;settings["user_directory"]=directory.string();settings["input_mode"]=mode;
+            settings["user_words_enabled"]=enabled;settings["user_words_first"]=first;settings["learning"]=false;
+            settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["core_library"]="test-inference";
+            {
+                Engine engine(settings,[](const Request&) {Result result;result.ready=true;result.candidates={"模型整句"};return result;});
+                Client client{engine,"user-options"};auto answer=client.type(std::string(mode)=="pinyin" ? "nihaoma" : "nihcma");
+                const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+                while(answer["pending"]==true && std::chrono::steady_clock::now()<deadline) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));answer=client.request("poll");
+                }
+                check(answer["pending"]==false,"user option fixture completes");
+                check(answer["candidates"][0]["text"]==((enabled && first)?"倪好嘛":"模型整句"),"user word enable and placement settings control model ordering");
+                if (enabled) {
+                    const auto& list=answer["candidates"];
+                    auto found=std::find_if(list.begin(),list.end(),[](const auto& c){return c["user"]==true;});
+                    check(found!=list.end(),"user word remains available after model results");
+                    answer=client.request("key","Highlight",{{"index",found-list.begin()},{"candidate_generation",answer["candidate_generation"]}});
+                    answer=client.request("key","Delete",{{"candidate_generation",answer["candidate_generation"]}});
+                    check(answer["commit"]=="" && answer["pending"]==true,"deleting a user word regenerates candidates without committing");
+                    for (const auto& c:answer["candidates"])check(c["user"]==false,"deleted word no longer carries user identity");
+                } else for (const auto& c:answer["candidates"])check(c["user"]==false,"disabled memories do not mark native candidates as user words");
+            }
+            Dictionary restored(fixture);restored.loadLearning(directory/"learning.json");
+            check(restored.frequency("ni'hao'ma","倪好嘛")==uint32_t(enabled?0:1),"disabling user words retains memory and explicit deletion persists with learning off");
+            if (!enabled) check(restored.lookup("nihaoma")[0].text=="倪好嘛","retained memories work when enabled again");
+        }
         for (const auto& mode : {"pinyin", "shuangpin"}) for (bool exactOnly : {false,true}) {
             const auto directory=temp/(std::string("exact-memory-")+mode+(exactOnly?"-on":"-off"));
             Dictionary personal(fixture);personal.learn("ni'hao","倪好");personal.saveLearning(directory/"learning.json");
@@ -326,6 +355,7 @@ int main() {
             const auto directory=temp/(std::string("single-memory-")+mode);
             Dictionary personal(fixture);personal.learn("ni","倪");personal.saveLearning(directory/"learning.json");
             auto settings=config;settings["user_directory"]=directory.string();settings["input_mode"]=mode;
+            settings["user_words_exact_only"]=false;
             settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["core_library"]="test-inference";
             Engine engine(settings,[](const Request&) {Result result;result.ready=true;result.candidates={"模型整句"};return result;});
             Client client{engine,"single-memory"};auto answer=client.type(std::string(mode)=="pinyin" ? "nihaoma" : "nihcma");

@@ -113,6 +113,10 @@ Euphony processes pinyin and context locally, using text before the cursor suppl
 
 “Prioritize user words only for exact matches” is enabled by default. User words matching a prefix, abbreviation, or unfinished syllable follow model results. Disabling it allows prefix user words to lead; single-character memories never receive priority for longer input. Highlight a user word and press Delete to forget it and regenerate candidates.
 
+「启用用户词」和「用户词优先」默认开启。关闭「用户词优先」后，用户词排在模型结果之后；关闭「启用用户词」后，不使用用户词和记忆排序，保留已有记录。「记住词库选择」独立控制是否继续学习新词。
+
+User words are enabled and shown before model results by default. Disable “User words first” to place them after model results, or disable “Enable user words” to stop using remembered vocabulary and ranking while retaining saved records. “Remember dictionary selections” independently controls new learning.
+
 用户数据保存在 `%LOCALAPPDATA%\Euphony`：`config.json` 为配置，`learning.json` 保存明确选中的词典词条，`webview/` 为页面缓存。更新安装自带资源路径前会保留 `config.json.before-update`。模型保存在自行选择的目录。
 
 User data lives in `%LOCALAPPDATA%\Euphony`: `config.json` holds preferences, `learning.json` records explicitly selected dictionary entries, and `webview/` stores page cache. Updating packaged resource paths preserves `config.json.before-update`. Models remain in the directory you select.

@@ -187,6 +187,14 @@
               <label class="toggle"><input id="prefer-unigram-single-syllable" data-key="prefer_unigram_single_syllable" type="checkbox" aria-label="无上下文单字优先词频" checked><span></span></label>
             </div>
             <div class="row">
+              <div class="row-label"><label for="user-words-enabled">启用用户词</label><p>关闭后不使用用户词和记忆排序，已保存的记忆仍保留。是否记录新词由「记住词库选择」控制。</p></div>
+              <label class="toggle"><input id="user-words-enabled" data-key="user_words_enabled" type="checkbox" aria-label="启用用户词" checked><span></span></label>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="user-words-first">用户词优先</label><p>开启时用户词可排在模型结果之前；关闭后排在模型结果之后。</p></div>
+              <label class="toggle"><input id="user-words-first" data-key="user_words_first" type="checkbox" aria-label="用户词优先" checked><span></span></label>
+            </div>
+            <div class="row">
               <div class="row-label"><label for="user-words-exact-only">仅精确匹配时优先用户词</label><p>开启后，只匹配输入前缀或仍需补全的用户词排在模型结果之后。多字输入中的单字记忆始终不前置。</p></div>
               <label class="toggle"><input id="user-words-exact-only" data-key="user_words_exact_only" type="checkbox" aria-label="仅精确匹配时优先用户词" checked><span></span></label>
             </div>
@@ -281,7 +289,7 @@
     const defaults = {
       model_directory:'', core_library:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
       shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
-      prefer_unigram_single_syllable:true, user_words_exact_only:true,
+      prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true,
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
       full_width:false, chinese_punctuation:true,
       engine:{schema_version:'1.0', tokenizer:{use_segmenter:true, segment_mode:'safe', repair:false,

@@ -93,7 +93,7 @@ double Dictionary::rank(const Entry& entry) const {
     auto it = learned_.find(entry.pinyin + "\t" + entry.text);
     // libime text weights are log10 scores. User selections supply a bounded
     // ranking bonus without persisting document history or model proposals.
-    return entry.weight + (it == learned_.end() ? 0.0 : 2.0 * std::log1p(it->second));
+    return entry.weight + (!userWordsEnabled_ || it == learned_.end() ? 0.0 : 2.0 * std::log1p(it->second));
 }
 std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool prefixes, size_t limit,
     const LanguageModel::State* context, bool unigramOnly) const {
@@ -112,7 +112,7 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
     std::vector<DictionaryCandidate> results;
     auto accept = [&](uint32_t id, size_t consumed, bool complete, bool abbreviated, bool completing = false) {
         const auto& entry = entries_[id];
-        if (entry.userOnly && !frequency(entry.pinyin,entry.text)) return;
+        if (entry.userOnly && (!userWordsEnabled_ || !frequency(entry.pinyin,entry.text))) return;
         if (unigramOnly && (abbreviated || completing || !complete || entry.pinyin != normalized ||
             entry.pinyin.find('\'') != std::string::npos || utf8Tail(entry.text, 1) != entry.text)) return;
         if (completing && !abbreviated) {
@@ -180,7 +180,7 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
     });
     std::unordered_set<std::string> seen;
     std::erase_if(results, [&](const auto& c) {
-        return !seen.insert(c.text + "\t" + (frequency(c.pinyin,c.text) ? c.pinyin : std::to_string(c.consumed))).second;
+        return !seen.insert(c.text + "\t" + (userWordsEnabled_ && frequency(c.pinyin,c.text) ? c.pinyin : std::to_string(c.consumed))).second;
     });
     if (limit && results.size() > limit) results.resize(limit);
     return results;
@@ -238,7 +238,7 @@ std::vector<DictionaryCandidate> Dictionary::lookup(std::string_view raw, size_t
     });
     std::unordered_set<std::string> seen;
     std::erase_if(result,[&](const auto& candidate){
-        return !seen.insert(candidate.text+"\t"+(frequency(candidate.pinyin,candidate.text) ? candidate.pinyin : std::to_string(candidate.consumed))).second;
+        return !seen.insert(candidate.text+"\t"+(userWordsEnabled_ && frequency(candidate.pinyin,candidate.text) ? candidate.pinyin : std::to_string(candidate.consumed))).second;
     });
     if (result.size() > limit) result.resize(limit);
     return result;
@@ -253,6 +253,7 @@ uint32_t Dictionary::frequency(std::string_view pinyin, std::string_view text) c
     return it == learned_.end() ? 0 : it->second;
 }
 uint32_t Dictionary::priority(const DictionaryCandidate& candidate) const {
+    if (!userWordsEnabled_) return 0;
     if (userWordsExactOnly_ && (!candidate.complete || candidate.predictive)) return 0;
     if (!candidate.complete && utf8Tail(candidate.text,1) == candidate.text) return 0;
     return frequency(candidate.pinyin,candidate.text);

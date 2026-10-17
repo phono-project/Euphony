@@ -522,7 +522,7 @@ private:
             const fields = document.getElementById('fields');
             if (!fields || fields.disabled) return {ready:false};
             const ids = ['input-mode','shuangpin-scheme','page-size','candidate-layout','model-candidate-color','user-candidate-color','invalid-input','learning',
-                'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','model-directory','core-library','dictionary-path','language-model-path','use-surrounding',
+                'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','user-words-enabled','user-words-first','model-directory','core-library','dictionary-path','language-model-path','use-surrounding',
                 'history-characters','context-slots','chinese-punctuation','full-width','lowercase-ascii','normalize-v','separators',
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
                 'slack-interval','min-accept-context','trial-ratio','decay-alpha','decay-lambda'];
@@ -549,8 +549,15 @@ private:
             const exactOnly = document.getElementById('user-words-exact-only');
             exactOnly.checked = !exactOnly.checked;
             exactOnly.dispatchEvent(new Event('change', {bubbles:true}));
-            const userWordsDirtyState = !document.getElementById('save').disabled;
+            let userWordsDirtyState = !document.getElementById('save').disabled;
             document.getElementById('revert').click();
+            for (const id of ['user-words-enabled','user-words-first']) {
+                const toggle = document.getElementById(id);
+                toggle.checked = !toggle.checked;
+                toggle.dispatchEvent(new Event('change', {bubbles:true}));
+                userWordsDirtyState = userWordsDirtyState && !document.getElementById('save').disabled;
+                document.getElementById('revert').click();
+            }
             const languageModel = document.getElementById('language-model-path');
             const originalLanguageModel = languageModel.value;
             languageModel.value = originalLanguageModel + '.self-test';
@@ -582,6 +589,8 @@ private:
                 language_model_path:languageModel.value,
                 prefer_unigram_single_syllable:unigram.checked,
                 user_words_exact_only:exactOnly.checked,user_words_dirty_state:userWordsDirtyState,
+                user_words_enabled:document.getElementById('user-words-enabled').checked,
+                user_words_first:document.getElementById('user-words-first').checked,
                 page_size:Number(pageSize.value),input_mode:mode.value,
                 shuangpin_scheme:document.getElementById('shuangpin-scheme').value,
                 model_enabled:document.getElementById('model-enabled').checked,
@@ -614,7 +623,7 @@ private:
                             test_dom_.value("language_model_picker", false) &&
                             test_dom_.value("scheme_toggle", false) && test_dom_.value("validation", false) &&
                             test_dom_.value("reverted", false) && test_dom_.value("footer_visible", false);
-                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "chinese_punctuation"})
+                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "chinese_punctuation"})
                             valid = valid && test_dom_.at(key) == test_config_.at(key);
                         if (!valid) {
                             finish_self_test({{"ok", false}, {"error", "Settings DOM or configuration binding check failed"}, {"dom", test_dom_}});
