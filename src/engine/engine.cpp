@@ -21,6 +21,7 @@ struct Candidate {
     size_t consumed = 0;
     std::vector<CandidatePiece> pieces;
     bool user = false;
+    bool preferred = false;
     bool operator==(const Candidate&) const = default;
 };
 struct Selection { std::string source, text, pinyin; };
@@ -66,6 +67,7 @@ struct Engine::Impl {
         worker(inference ? std::move(inference) : Worker::Inference([this](const Request& request) { return core.infer(request); })) {
         try {
             dictionary = std::make_unique<Dictionary>(std::filesystem::path(wide(config.value("dictionary_path", ""))));
+            dictionary->setUserWordsExactOnly(config.value("user_words_exact_only", true));
             shuangpin = std::make_unique<ShuangpinProfile>(config.value("shuangpin_scheme", "xiaohe"), dictionary->syllables());
             if (!config.value("user_directory", "").empty()) {
                 learningFile = std::filesystem::path(wide(config.value("user_directory", ""))) / "learning.json";
@@ -180,8 +182,7 @@ struct Engine::Impl {
             auto previous=candidateSnapshot(state);state.candidates.clear();
             std::unordered_set<std::string> seen;
             for (const auto& candidate : state.dictionary)
-                if (candidate.user && (candidate.consumed == state.raw.size() || utf8Tail(candidate.commit,1) != candidate.commit) &&
-                    seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
+                if (candidate.preferred && seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
             for (const auto& decoded : completion.result.candidates) {
                 auto presentation = presentCandidate(decoded, completion.result.invalid,
                     config.value("invalid_input", "pass") == "delete" ? InvalidInputPolicy::Delete : InvalidInputPolicy::PassThrough);
@@ -189,6 +190,9 @@ struct Engine::Impl {
                 std::string text; for (const auto& piece : presentation.pieces) text += piece.text;
                 state.candidates.push_back({text, presentation.committed, {}, true, state.raw.size(), std::move(presentation.pieces)});
             }
+            for (const auto& candidate : state.dictionary)
+                if (candidate.user && (candidate.consumed == state.raw.size() || utf8Tail(candidate.commit,1) != candidate.commit) &&
+                    seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
             for (const auto& candidate : state.dictionary)
                 if (seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
             state.candidateSource = !state.candidates.empty() && state.candidates.front().model ? "phono" : "dictionary";
@@ -329,7 +333,8 @@ struct Engine::Impl {
             std::string text; for (const auto& piece : presentation.pieces) text += piece.text;
             state.dictionary.push_back({text, presentation.committed, native.pinyin, false,
                 native.consumed, std::move(presentation.pieces),
-                dictionary && dictionary->frequency(native.pinyin,presentation.committed) != 0});
+                dictionary && dictionary->frequency(native.pinyin,presentation.committed) != 0,
+                dictionary && dictionary->priority(native) != 0});
         }
         if (state.dictionary.empty() && converted.tokens.empty() && !converted.invalid.empty()) {
             auto presentation = presentCandidate({},converted.invalid,

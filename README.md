@@ -109,6 +109,10 @@ Euphony 在本机处理拼音和上文，使用应用提供的光标前文本生
 
 Euphony processes pinyin and context locally, using text before the cursor supplied by the application to generate candidates. You can disable application context in settings. When context is unavailable, it uses consecutive commits within the session. Password and private fields disable context reading, inference, and learning.
 
+「仅精确匹配时优先用户词」默认开启：用户词只匹配输入前缀、简拼或未完成音节时，排在模型结果之后。关闭后可优先显示前缀用户词；多字输入中的单字记忆始终不前置。高亮用户词后按 Delete 可删除记忆并重新生成候选。
+
+“Prioritize user words only for exact matches” is enabled by default. User words matching a prefix, abbreviation, or unfinished syllable follow model results. Disabling it allows prefix user words to lead; single-character memories never receive priority for longer input. Highlight a user word and press Delete to forget it and regenerate candidates.
+
 用户数据保存在 `%LOCALAPPDATA%\Euphony`：`config.json` 为配置，`learning.json` 保存明确选中的词典词条，`webview/` 为页面缓存。更新安装自带资源路径前会保留 `config.json.before-update`。模型保存在自行选择的目录。
 
 User data lives in `%LOCALAPPDATA%\Euphony`: `config.json` holds preferences, `learning.json` records explicitly selected dictionary entries, and `webview/` stores page cache. Updating packaged resource paths preserves `config.json.before-update`. Models remain in the directory you select.

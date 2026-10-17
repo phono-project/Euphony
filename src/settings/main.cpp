@@ -522,7 +522,7 @@ private:
             const fields = document.getElementById('fields');
             if (!fields || fields.disabled) return {ready:false};
             const ids = ['input-mode','shuangpin-scheme','page-size','candidate-layout','model-candidate-color','user-candidate-color','invalid-input','learning',
-                'model-enabled','prefer-unigram-single-syllable','model-directory','core-library','dictionary-path','language-model-path','use-surrounding',
+                'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','model-directory','core-library','dictionary-path','language-model-path','use-surrounding',
                 'history-characters','context-slots','chinese-punctuation','full-width','lowercase-ascii','normalize-v','separators',
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
                 'slack-interval','min-accept-context','trial-ratio','decay-alpha','decay-lambda'];
@@ -545,6 +545,11 @@ private:
             unigram.checked = !originalUnigram;
             unigram.dispatchEvent(new Event('change', {bubbles:true}));
             const unigramDirtyState = !document.getElementById('save').disabled;
+            document.getElementById('revert').click();
+            const exactOnly = document.getElementById('user-words-exact-only');
+            exactOnly.checked = !exactOnly.checked;
+            exactOnly.dispatchEvent(new Event('change', {bubbles:true}));
+            const userWordsDirtyState = !document.getElementById('save').disabled;
             document.getElementById('revert').click();
             const languageModel = document.getElementById('language-model-path');
             const originalLanguageModel = languageModel.value;
@@ -576,6 +581,7 @@ private:
                 dictionary_path:document.getElementById('dictionary-path').value,
                 language_model_path:languageModel.value,
                 prefer_unigram_single_syllable:unigram.checked,
+                user_words_exact_only:exactOnly.checked,user_words_dirty_state:userWordsDirtyState,
                 page_size:Number(pageSize.value),input_mode:mode.value,
                 shuangpin_scheme:document.getElementById('shuangpin-scheme').value,
                 model_enabled:document.getElementById('model-enabled').checked,
@@ -603,11 +609,12 @@ private:
                         bool valid = test_dom_.at("missing").empty() &&
                             test_dom_.value("schemes", 0) == 7 && test_dom_.value("dirty_state", false) &&
                             test_dom_.value("unigram_dirty_state", false) && test_dom_.value("language_model_dirty_state", false) &&
+                            test_dom_.value("user_words_dirty_state", false) &&
                             test_dom_.value("layout_dirty_state", false) &&
                             test_dom_.value("language_model_picker", false) &&
                             test_dom_.value("scheme_toggle", false) && test_dom_.value("validation", false) &&
                             test_dom_.value("reverted", false) && test_dom_.value("footer_visible", false);
-                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "chinese_punctuation"})
+                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "chinese_punctuation"})
                             valid = valid && test_dom_.at(key) == test_config_.at(key);
                         if (!valid) {
                             finish_self_test({{"ok", false}, {"error", "Settings DOM or configuration binding check failed"}, {"dom", test_dom_}});

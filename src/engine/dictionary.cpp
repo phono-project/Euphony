@@ -137,7 +137,7 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
             }
         }
         results.push_back({entry.text, entry.pinyin, sourceEnd[consumed - 1],
-            score - (abbreviated ? 0.2 : 0.0) - (completing ? 5.0 : 0.0), complete, completing});
+            score - (abbreviated ? 0.2 : 0.0) - (completing ? 5.0 : 0.0), complete, completing || abbreviated});
     };
     auto visit = [&](const std::vector<Node>& trie, bool abbreviated) {
         uint32_t node = 0;
@@ -193,7 +193,7 @@ std::vector<DictionaryCandidate> Dictionary::lookup(std::string_view raw, size_t
     // Compose dictionary words when there is no whole phrase in the lexicon.
     // A small beam gives an immediate fallback while the model runs.
     if (!languageModel_ && !result.empty() && result.front().complete) return result;
-    struct Beam { std::string text, pinyin; double score; size_t words; LanguageModel::State state; };
+    struct Beam { std::string text, pinyin; double score; size_t words; LanguageModel::State state; bool predictive = false; };
     std::vector<std::vector<Beam>> beams(raw.size() + 1);
     beams[0].push_back({{}, {}, 0, 0, context});
     for (size_t pos = 0; pos < raw.size(); ++pos) {
@@ -217,7 +217,8 @@ std::vector<DictionaryCandidate> Dictionary::lookup(std::string_view raw, size_t
                 }
                 beams[end].push_back({previous.text + word.text,
                     previous.pinyin + (previous.pinyin.empty() ? "" : "'") + word.pinyin,
-                    previous.score + score - (languageModel_ ? 0.0 : 0.5), previous.words + 1, std::move(next)});
+                    previous.score + score - (languageModel_ ? 0.0 : 0.5), previous.words + 1, std::move(next),
+                    previous.predictive || word.predictive});
             }
             auto& target = beams[end];
             std::stable_sort(target.begin(), target.end(), [](const auto& a, const auto& b) { return a.score > b.score; });
@@ -226,7 +227,7 @@ std::vector<DictionaryCandidate> Dictionary::lookup(std::string_view raw, size_t
     }
     std::vector<DictionaryCandidate> combined;
     for (const auto& beam : beams.back())
-        if (beam.words > 1) combined.push_back({beam.text, beam.pinyin, raw.size(), beam.score, true});
+        if (beam.words > 1) combined.push_back({beam.text, beam.pinyin, raw.size(), beam.score, true, beam.predictive});
     result.insert(result.begin(),combined.begin(),combined.end());
     std::stable_sort(result.begin(), result.end(), [this](const auto& a, const auto& b) {
         if (priority(a) != priority(b)) return priority(a) > priority(b);
@@ -252,6 +253,7 @@ uint32_t Dictionary::frequency(std::string_view pinyin, std::string_view text) c
     return it == learned_.end() ? 0 : it->second;
 }
 uint32_t Dictionary::priority(const DictionaryCandidate& candidate) const {
+    if (userWordsExactOnly_ && (!candidate.complete || candidate.predictive)) return 0;
     if (!candidate.complete && utf8Tail(candidate.text,1) == candidate.text) return 0;
     return frequency(candidate.pinyin,candidate.text);
 }

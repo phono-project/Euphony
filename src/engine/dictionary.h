@@ -14,7 +14,7 @@ struct DictionaryCandidate {
     size_t consumed = 0; // bytes of original composition
     double score = 0;
     bool complete = false;
-    bool predictive = false; // the final syllable is not completely entered
+    bool predictive = false; // the reading is abbreviated or unfinished
 };
 class Dictionary {
 public:
@@ -22,6 +22,7 @@ public:
     std::vector<DictionaryCandidate> lookup(std::string_view raw, size_t limit = 64,
         std::string_view history = {}, bool unigramOnly = false) const;
     void setLanguageModel(std::shared_ptr<const LanguageModel> model) { languageModel_ = std::move(model); }
+    void setUserWordsExactOnly(bool value) { userWordsExactOnly_ = value; }
     const std::unordered_set<std::string>& syllables() const { return syllables_; }
     size_t size() const { return entries_.size(); }
     void learn(std::string_view pinyin, std::string_view text);
@@ -44,6 +45,7 @@ private:
     std::unordered_map<std::string, uint32_t> learned_;
     mutable std::unordered_map<std::string, uint32_t> saved_;
     std::shared_ptr<const LanguageModel> languageModel_;
+    bool userWordsExactOnly_ = true;
 };
 std::vector<std::string> splitPinyin(std::string_view);
 std::string utf8Tail(std::string_view text, size_t characters);

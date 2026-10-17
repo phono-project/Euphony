@@ -301,6 +301,27 @@ int main() {
             check(!incomplete.empty() && incomplete[0].text=="你好","completion extends only the last entered syllable");
             for(const auto& proposal:incomplete)check(proposal.text!="你好吗","completion does not invent another syllable");
         }
+        for (const auto& mode : {"pinyin", "shuangpin"}) for (bool exactOnly : {false,true}) {
+            const auto directory=temp/(std::string("exact-memory-")+mode+(exactOnly?"-on":"-off"));
+            Dictionary personal(fixture);personal.learn("ni'hao","倪好");personal.saveLearning(directory/"learning.json");
+            auto settings=config;settings["user_directory"]=directory.string();settings["input_mode"]=mode;
+            settings["user_words_exact_only"]=exactOnly;
+            settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["core_library"]="test-inference";
+            Engine engine(settings,[](const Request&) {Result result;result.ready=true;result.candidates={"模型整句"};return result;});
+            Client client{engine,"exact-memory"};
+            for (int kind : {0,1,2}) {
+                const bool pairs=std::string(mode)=="shuangpin";
+                const auto input=kind==0 ? (pairs?"nihc":"nihao") : kind==1 ? (pairs?"nihcma":"nihaoma") : (pairs?"nih":"niha");
+                auto answer=client.type(input);
+                const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+                while(answer["pending"]==true && std::chrono::steady_clock::now()<deadline) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));answer=client.request("poll");
+                }
+                check(answer["pending"]==false,"exact-match fixture completes");
+                check(answer["candidates"][0]["text"]==((!exactOnly || kind==0)?"倪好":"模型整句"),"exact-match setting orders whole, prefix and unfinished user words");
+                client.request("reset");
+            }
+        }
         for (const auto& mode : {"pinyin", "shuangpin"}) {
             const auto directory=temp/(std::string("single-memory-")+mode);
             Dictionary personal(fixture);personal.learn("ni","倪");personal.saveLearning(directory/"learning.json");

@@ -15,9 +15,10 @@ int main() {
         if (config["user_candidate_color"] != "#FBE4EC") throw std::runtime_error("Memory color default is not red");
         if (config["page_size"] != 5 || config["candidate_layout"] != "vertical") throw std::runtime_error("Candidate display defaults are incorrect");
         if (config["prefer_unigram_single_syllable"] != true) throw std::runtime_error("Single-syllable unigram default is not enabled");
+        if (config["user_words_exact_only"] != true) throw std::runtime_error("Exact-match user priority default is not enabled");
         for (const auto& patch : {nlohmann::json{{"page_size", 0}}, nlohmann::json{{"context_slots", 33}},
              nlohmann::json{{"input_mode", "unknown"}}, nlohmann::json{{"candidate_layout", "diagonal"}}, nlohmann::json{{"model_candidate_color", "#GG0000"}}, nlohmann::json{{"user_candidate_color", "red"}}, nlohmann::json{{"model_directory", "relative/path"}},
-             nlohmann::json{{"language_model_path", "relative.lm"}}, nlohmann::json{{"prefer_unigram_single_syllable", "true"}}}) {
+             nlohmann::json{{"language_model_path", "relative.lm"}}, nlohmann::json{{"prefer_unigram_single_syllable", "true"}}, nlohmann::json{{"user_words_exact_only", "true"}}}) {
             auto bad = config;
             bad.merge_patch(patch);
             bool rejected = false;
@@ -32,7 +33,7 @@ int main() {
         if (recovered.load_error().empty()) throw std::runtime_error("Damaged config did not report recovery");
         { std::ifstream original(test_profile / L"config.json"); std::string content; original >> content;
           if (content != "{broken") throw std::runtime_error("Recovery overwrote the damaged config"); }
-        auto edited = recovered.prepare({{"page_size", 4}, {"candidate_layout", "horizontal"}, {"prefer_unigram_single_syllable", false}, {"context", {{"max_context_length", 128}}}});
+        auto edited = recovered.prepare({{"page_size", 4}, {"candidate_layout", "horizontal"}, {"prefer_unigram_single_syllable", false}, {"user_words_exact_only", false}, {"context", {{"max_context_length", 128}}}});
         recovered.save(edited);
         edited = recovered.prepare({{"context", {{"max_context_length", nullptr}}}});
         if (edited["context"].contains("max_context_length")) throw std::runtime_error("Automatic window did not clear explicit override");
@@ -40,6 +41,7 @@ int main() {
         euphony::ConfigStore restored;
         if (!restored.load_error().empty() || restored.get()["page_size"] != 4) throw std::runtime_error("Config save did not persist");
         if (restored.get()["prefer_unigram_single_syllable"] != false) throw std::runtime_error("Unigram preference did not persist");
+        if (restored.get()["user_words_exact_only"] != false) throw std::runtime_error("User-word exact-match preference did not persist");
         if (restored.get()["candidate_layout"] != "horizontal") throw std::runtime_error("Candidate layout did not persist");
         std::cout << "Unicode and configuration checks passed\n";
         return 0;

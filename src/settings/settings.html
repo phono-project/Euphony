@@ -156,7 +156,7 @@
               <input id="model-candidate-color" data-key="model_candidate_color" type="color" value="#dff2e5" aria-label="模型候选颜色">
             </div>
             <div class="row">
-              <div class="row-label"><label for="user-candidate-color">记忆词组颜色</label><p>记忆词组优先显示，默认使用淡粉红色背景。高亮该候选后按 Delete 可忘记它。</p></div>
+              <div class="row-label"><label for="user-candidate-color">记忆词组颜色</label><p>默认使用淡粉红色背景。高亮该候选后按 Delete 可忘记它。</p></div>
               <input id="user-candidate-color" data-key="user_candidate_color" type="color" value="#fbe4ec" aria-label="记忆词组颜色">
             </div>
             <div class="row">
@@ -185,6 +185,10 @@
             <div class="row">
               <div class="row-label"><label for="prefer-unigram-single-syllable">无上下文单字优先词频</label><p>没有有效上下文且只输入一个完整音节时，优先使用 KenLM 一元词频；其余情况使用 Phono。KenLM 未就绪时回退到通常的候选生成。</p></div>
               <label class="toggle"><input id="prefer-unigram-single-syllable" data-key="prefer_unigram_single_syllable" type="checkbox" aria-label="无上下文单字优先词频" checked><span></span></label>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="user-words-exact-only">仅精确匹配时优先用户词</label><p>开启后，只匹配输入前缀或仍需补全的用户词排在模型结果之后。多字输入中的单字记忆始终不前置。</p></div>
+              <label class="toggle"><input id="user-words-exact-only" data-key="user_words_exact_only" type="checkbox" aria-label="仅精确匹配时优先用户词" checked><span></span></label>
             </div>
             <div class="divider"></div>
             <div class="path-field">
@@ -277,7 +281,7 @@
     const defaults = {
       model_directory:'', core_library:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
       shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
-      prefer_unigram_single_syllable:true,
+      prefer_unigram_single_syllable:true, user_words_exact_only:true,
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
       full_width:false, chinese_punctuation:true,
       engine:{schema_version:'1.0', tokenizer:{use_segmenter:true, segment_mode:'safe', repair:false,
