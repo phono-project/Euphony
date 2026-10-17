@@ -521,7 +521,7 @@ private:
         constexpr wchar_t script[] = LR"JS((() => {
             const fields = document.getElementById('fields');
             if (!fields || fields.disabled) return {ready:false};
-            const ids = ['input-mode','shuangpin-scheme','page-size','candidate-layout','model-candidate-color','invalid-input','learning',
+            const ids = ['input-mode','shuangpin-scheme','page-size','candidate-layout','model-candidate-color','user-candidate-color','invalid-input','learning',
                 'model-enabled','prefer-unigram-single-syllable','model-directory','core-library','dictionary-path','language-model-path','use-surrounding',
                 'history-characters','context-slots','chinese-punctuation','full-width','lowercase-ascii','normalize-v','separators',
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
@@ -567,6 +567,7 @@ private:
                 dirty_state:dirtyState,scheme_toggle:schemeToggle,validation,
                 layout_dirty_state:layoutDirtyState,candidate_layout:layout.value,
                 model_candidate_color:document.getElementById('model-candidate-color').value.toUpperCase(),
+                user_candidate_color:document.getElementById('user-candidate-color').value.toUpperCase(),
                 unigram_dirty_state:unigramDirtyState,language_model_dirty_state:languageModelDirtyState,
                 language_model_picker:!!document.querySelector('[data-pick="language_model_path"]'),
                 reverted:document.getElementById('save').disabled,
@@ -606,7 +607,7 @@ private:
                             test_dom_.value("language_model_picker", false) &&
                             test_dom_.value("scheme_toggle", false) && test_dom_.value("validation", false) &&
                             test_dom_.value("reverted", false) && test_dom_.value("footer_visible", false);
-                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "page_size", "candidate_layout", "model_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "chinese_punctuation"})
+                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "chinese_punctuation"})
                             valid = valid && test_dom_.at(key) == test_config_.at(key);
                         if (!valid) {
                             finish_self_test({{"ok", false}, {"error", "Settings DOM or configuration binding check failed"}, {"dom", test_dom_}});

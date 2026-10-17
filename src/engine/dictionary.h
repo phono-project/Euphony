@@ -25,10 +25,12 @@ public:
     const std::unordered_set<std::string>& syllables() const { return syllables_; }
     size_t size() const { return entries_.size(); }
     void learn(std::string_view pinyin, std::string_view text);
+    uint32_t frequency(std::string_view pinyin, std::string_view text) const;
+    void forget(std::string_view pinyin, std::string_view text);
     void loadLearning(const std::filesystem::path& file);
     void saveLearning(const std::filesystem::path& file) const;
 private:
-    struct Entry { std::string text, pinyin; double weight; };
+    struct Entry { std::string text, pinyin; double weight; bool userOnly = false; };
     struct Node { std::unordered_map<char, uint32_t> next; std::vector<uint32_t> entries; };
     void insert(std::vector<Node>& trie, std::string_view key, uint32_t entry);
     std::vector<DictionaryCandidate> matches(std::string_view raw, bool prefixes, size_t limit,

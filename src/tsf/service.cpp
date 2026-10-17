@@ -158,7 +158,7 @@ bool compartment(IUnknown* owner, REFGUID id) {
     const bool result = SUCCEEDED(field->GetValue(&value)) && value.vt == VT_I4 && value.lVal != 0;
     VariantClear(&value); return result;
 }
-struct Candidate { std::wstring text; bool model{}, continues{}; std::vector<std::pair<std::wstring, bool>> pieces; };
+struct Candidate { std::wstring text; bool model{}, continues{}, user{}; std::vector<std::pair<std::wstring, bool>> pieces; };
 struct Replay { ComPtr<ITfContext> context; std::uint64_t epoch{}; WPARAM vk{}; LPARAM flags{}; };
 class Service;
 class LanguageButton final : public ITfLangBarItemButton, public ITfSource {
@@ -205,6 +205,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     DWORD activation_{};
     HWND dispatch_{}, popup_{}, mode_popup_{};
     COLORREF model_color_ = RGB(223,242,229);
+    COLORREF user_color_ = RGB(255,0,0);
     HFONT font_{};
     std::shared_ptr<Work> worker_;
     std::string session_;
@@ -481,13 +482,18 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         if (candidate_generation_!=list_generation) host_pages_.clear();
         candidate_generation_=list_generation;
         if (value.contains("candidates") && value["candidates"].is_array()) for (const auto& item:value["candidates"]) {
-            Candidate candidate{wide(item.value("text",std::string{})),item.value("model",false),item.value("continues",false),{}};
+            Candidate candidate{wide(item.value("text",std::string{})),item.value("model",false),item.value("continues",false),item.value("user",false),{}};
             if (item.contains("pieces")) for (const auto& piece:item["pieces"]) candidate.pieces.emplace_back(wide(piece.value("text",std::string{})),piece.value("deleted",false));
             candidates_.push_back(std::move(candidate));
         }
         selection_=std::min(static_cast<UINT>(std::max(0,value.value("selection",0))),candidates_.empty()?0u:static_cast<UINT>(candidates_.size()-1));
         page_size_=static_cast<UINT>(std::clamp(value.value("page_size",5),1,10));
         horizontal_=value.value("candidate_layout","vertical")=="horizontal";
+        const auto userColor=value.value("user_candidate_color",std::string{"#FF0000"});
+        if (userColor.size()==7 && userColor.front()=='#' && userColor.find_first_not_of("0123456789abcdefABCDEF",1)==std::string::npos) {
+            const auto rgb=std::stoul(userColor.substr(1),nullptr,16);
+            user_color_=RGB((rgb>>16)&255,(rgb>>8)&255,rgb&255);
+        }
         const auto color=value.value("model_candidate_color",std::string{"#DFF2E5"});
         if (color.size()==7 && color.front()=='#' && color.find_first_not_of("0123456789abcdefABCDEF",1)==std::string::npos) {
             const auto rgb=std::stoul(color.substr(1),nullptr,16);
@@ -614,7 +620,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             int x=cell.left+pad_/2; SetTextColor(dc,RGB(45,49,70)); TextOutW(dc,x,y,label.data(),static_cast<int>(label.size())); SIZE size{}; GetTextExtentPoint32W(dc,label.data(),static_cast<int>(label.size()),&size); x+=size.cx;
             IntersectClipRect(dc,cell.left,cell.top,cell.right-pad_/2,cell.bottom);
             auto draw=[&](std::wstring_view text,bool deleted) {
-                SetTextColor(dc,deleted?RGB(155,158,170):RGB(30,34,56)); TextOutW(dc,x,y,text.data(),static_cast<int>(text.size()));
+                SetTextColor(dc,deleted?RGB(155,158,170):(candidates_[i].user?user_color_:RGB(30,34,56))); TextOutW(dc,x,y,text.data(),static_cast<int>(text.size()));
                 GetTextExtentPoint32W(dc,text.data(),static_cast<int>(text.size()),&size);
                 if (deleted) { auto pen=CreatePen(PS_SOLID,1,RGB(155,158,170)); auto oldpen=SelectObject(dc,pen); MoveToEx(dc,x,y+row_/3,nullptr); LineTo(dc,x+size.cx,y+row_/3); SelectObject(dc,oldpen); DeleteObject(pen); }
                 x+=size.cx;
@@ -845,7 +851,7 @@ public:
         value["key"]=key; value["shift"]=shift; value["ctrl"]=ctrl; value["alt"]=alt;
         const bool candidate_action=key=="Space" || (!shift && key.size()==1 && key[0]>='0' && key[0]<='9') ||
             key=="Tab" || key=="PageUp" || key=="PageDown" || key=="Up" || key=="Down" ||
-            key=="-" || key=="=" || key=="_" || key=="+";
+            key=="-" || key=="=" || key=="_" || key=="+" || key=="Delete";
         if (candidate_action && !candidates_.empty()) value["candidate_generation"]=candidate_generation_;
         value["virtual_key"]=static_cast<std::uint64_t>(vk); value["key_flags"]=static_cast<std::uint64_t>(flags);
         const auto sequence=value["seq"].get<std::uint64_t>();

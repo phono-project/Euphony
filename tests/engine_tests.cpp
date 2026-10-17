@@ -200,6 +200,55 @@ int main() {
             check(std::filesystem::copy_file(modelPath,unicodeFile),"Unicode language-model filename fixture is created");
             {LanguageModel unicode(unicodeFile);check(unicode.known("你"),"KenLM loads a real Chinese filename through its native path adapter");}
         }
+        {
+            auto memoryConfig=config;
+            const auto directory=temp/"memory";
+            memoryConfig["user_directory"]=directory.string();
+            memoryConfig["user_candidate_color"]="#CC2233";
+            {
+                Engine engine(memoryConfig); Client client{engine,"memory"};
+                auto answer=client.type("nihaoma");
+                for (const auto* text : {"倪","好","嘛"}) {
+                    const auto& list=answer["candidates"];
+                    auto found=std::find_if(list.begin(),list.end(),[&](const auto& c){return c["text"]==text;});
+                    check(found!=list.end(),"manual phrase component exists");
+                    answer=client.request("key","Select",{{"index",found-list.begin()},{"candidate_generation",answer["candidate_generation"]}});
+                }
+                check(answer["commit"]=="倪好嘛","whole manually composed phrase commits");
+                answer=client.type("nihaoma");
+                check(answer["candidates"][0]["text"]=="倪好嘛" && answer["candidates"][0]["user"]==true,"remembered phrase leads immediately");
+                check(answer["user_candidate_color"]=="#CC2233","configured memory color reaches frontend");
+                client.request("key","Space");
+            }
+            Dictionary restored(fixture);restored.loadLearning(directory/"learning.json");
+            check(restored.frequency("ni'hao'ma","倪好嘛")==2,"whole phrase count persists");
+            memoryConfig["model_enabled"]=true;memoryConfig["model_directory"]=temp.string();memoryConfig["core_library"]="test-inference";
+            {
+                Engine engine(memoryConfig,[](const Request&) {Result result;result.ready=true;result.candidates={"你好嘛","倪好嘛"};return result;});
+                Client client{engine,"memory-model"};auto answer=client.type("nihaoma");
+                const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+                while(answer["pending"]==true && std::chrono::steady_clock::now()<deadline) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));answer=client.request("poll");
+                }
+                check(answer["pending"]==false,"memory model fixture completes");
+                check(answer["candidates"][0]["user"]==true && answer["candidates"][0]["model"]==false,"memory leads and wins duplicate model identity");
+                answer=client.request("key","Delete",{{"candidate_generation",answer["candidate_generation"]}});
+                check(answer["preedit"]=="nihaoma" && answer["commit"]=="","forget preserves input");
+                for(const auto& c:answer["candidates"])check(c["user"]==false,"forget immediately removes memory priority");
+            }
+            Dictionary forgotten(fixture);forgotten.loadLearning(directory/"learning.json");
+            check(forgotten.frequency("ni'hao'ma","倪好嘛")==0,"forgotten phrase stays forgotten after restart");
+            auto pairConfig=memoryConfig;pairConfig["model_enabled"]=false;pairConfig["input_mode"]="shuangpin";pairConfig["shuangpin_scheme"]="xiaohe";
+            restored.saveLearning(directory/"learning.json");
+            Dictionary afterStaleSave(fixture);afterStaleSave.loadLearning(directory/"learning.json");
+            check(afterStaleSave.frequency("ni'hao'ma","倪好嘛")==0,"stale engine save does not resurrect deletion");
+            forgotten.learn("ni'hao'ma","倪好嘛");forgotten.saveLearning(directory/"learning.json");
+            Engine pairs(pairConfig);Client pair{pairs,"memory-pairs"};auto answer=pair.type("nihcma");
+            check(answer["candidates"][0]["text"]=="倪好嘛" && answer["candidates"][0]["user"]==true,"shuangpin reuses canonical phrase");
+            pair.request("key","Delete");
+            Dictionary deletedAgain(fixture);deletedAgain.loadLearning(directory/"learning.json");
+            check(deletedAgain.frequency("ni'hao'ma","倪好嘛")==0,"shuangpin deletion persists");
+        }
         for(const auto& interaction:std::vector<std::string>{"Select","Space","Highlight"}) {
             auto raceConfig=config;raceConfig["model_enabled"]=true;
             raceConfig["core_library"]="test-inference";raceConfig["model_directory"]=temp.string();

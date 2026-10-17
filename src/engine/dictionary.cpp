@@ -112,6 +112,7 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
     std::vector<DictionaryCandidate> results;
     auto accept = [&](uint32_t id, size_t consumed, bool complete, bool abbreviated, bool completing = false) {
         const auto& entry = entries_[id];
+        if (entry.userOnly && !frequency(entry.pinyin,entry.text)) return;
         if (unigramOnly && (abbreviated || completing || !complete || entry.pinyin != normalized ||
             entry.pinyin.find('\'') != std::string::npos || utf8Tail(entry.text, 1) != entry.text)) return;
         if (completing && !abbreviated) {
@@ -171,13 +172,17 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
     };
     visit(full_, false);
     if (normalized.size() <= 12 && boundaries.empty()) visit(initials_, true);
-    std::stable_sort(results.begin(), results.end(), [](const auto& a, const auto& b) {
+    std::stable_sort(results.begin(), results.end(), [this](const auto& a, const auto& b) {
+        if (frequency(a.pinyin,a.text) != frequency(b.pinyin,b.text))
+            return frequency(a.pinyin,a.text) > frequency(b.pinyin,b.text);
         if (a.complete != b.complete) return a.complete;
         if (a.consumed != b.consumed) return a.consumed > b.consumed;
         return a.score > b.score;
     });
     std::unordered_set<std::string> seen;
-    std::erase_if(results, [&](const auto& c) { return !seen.insert(c.text + "\t" + std::to_string(c.consumed)).second; });
+    std::erase_if(results, [&](const auto& c) {
+        return !seen.insert(c.text + "\t" + (frequency(c.pinyin,c.text) ? c.pinyin : std::to_string(c.consumed))).second;
+    });
     if (limit && results.size() > limit) results.resize(limit);
     return results;
 }
@@ -224,14 +229,18 @@ std::vector<DictionaryCandidate> Dictionary::lookup(std::string_view raw, size_t
     for (const auto& beam : beams.back())
         if (beam.words > 1) combined.push_back({beam.text, beam.pinyin, raw.size(), beam.score, true});
     result.insert(result.begin(),combined.begin(),combined.end());
-    if (languageModel_)
-        std::stable_sort(result.begin(), result.end(), [](const auto& a, const auto& b) {
-            if (a.complete != b.complete) return a.complete;
-            if (a.consumed != b.consumed) return a.consumed > b.consumed;
-            return a.score > b.score;
-        });
+    std::stable_sort(result.begin(), result.end(), [this](const auto& a, const auto& b) {
+        if (frequency(a.pinyin,a.text) != frequency(b.pinyin,b.text))
+            return frequency(a.pinyin,a.text) > frequency(b.pinyin,b.text);
+        if (!languageModel_) return false;
+        if (a.complete != b.complete) return a.complete;
+        if (a.consumed != b.consumed) return a.consumed > b.consumed;
+        return a.score > b.score;
+    });
     std::unordered_set<std::string> seen;
-    std::erase_if(result,[&](const auto& candidate){return !seen.insert(candidate.text+"\t"+std::to_string(candidate.consumed)).second;});
+    std::erase_if(result,[&](const auto& candidate){
+        return !seen.insert(candidate.text+"\t"+(frequency(candidate.pinyin,candidate.text) ? candidate.pinyin : std::to_string(candidate.consumed))).second;
+    });
     if (result.size() > limit) result.resize(limit);
     return result;
 }
@@ -239,6 +248,13 @@ void Dictionary::learn(std::string_view pinyin, std::string_view text) {
     auto& count = learned_[std::string(pinyin) + "\t" + std::string(text)];
     count = std::min(count + 1, uint32_t(100000));
     addLearnedEntry(pinyin,text);
+}
+uint32_t Dictionary::frequency(std::string_view pinyin, std::string_view text) const {
+    const auto it = learned_.find(std::string(pinyin) + "\t" + std::string(text));
+    return it == learned_.end() ? 0 : it->second;
+}
+void Dictionary::forget(std::string_view pinyin, std::string_view text) {
+    learned_.erase(std::string(pinyin) + "\t" + std::string(text));
 }
 void Dictionary::addLearnedEntry(std::string_view pinyin,std::string_view text) {
     if (text.empty() || pinyin.empty()) return;
@@ -258,7 +274,7 @@ void Dictionary::addLearnedEntry(std::string_view pinyin,std::string_view text) 
         for(auto id:full_[node].entries)
             if(entries_[id].pinyin==pinyin && entries_[id].text==text)return;
     const auto id=static_cast<uint32_t>(entries_.size());
-    entries_.push_back({std::string(text),std::string(pinyin),0.0});
+    entries_.push_back({std::string(text),std::string(pinyin),0.0,true});
     insert(full_,flat,id);insert(initials_,initials,id);
 }
 void Dictionary::loadLearning(const std::filesystem::path& file) {
@@ -290,10 +306,13 @@ void Dictionary::saveLearning(const std::filesystem::path& file) const {
             merged = std::move(stored);
         }
     } catch (const nlohmann::json::exception&) { }
+    for (const auto& [key,count] : saved_)
+        if (!learned_.contains(key)) merged.erase(key);
     for (const auto& [key,count] : learned_) {
         const auto previous = saved_.find(key);
         const auto baseline = previous == saved_.end() ? 0 : previous->second;
         const auto delta = count > baseline ? count - baseline : 0;
+        if (!delta) continue;
         merged[key] = static_cast<uint32_t>(std::min(uint64_t(100000),uint64_t(merged[key])+delta));
     }
     { std::ofstream out(temporary, std::ios::trunc); if (!out) return;

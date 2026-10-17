@@ -12,10 +12,11 @@ int main() {
         if (!invalid) throw std::runtime_error("Invalid UTF8 accepted");
         auto config = euphony::default_config();
         euphony::validate_config(config);
+        if (config["user_candidate_color"] != "#FF0000") throw std::runtime_error("Memory color default is not red");
         if (config["page_size"] != 5 || config["candidate_layout"] != "vertical") throw std::runtime_error("Candidate display defaults are incorrect");
         if (config["prefer_unigram_single_syllable"] != true) throw std::runtime_error("Single-syllable unigram default is not enabled");
         for (const auto& patch : {nlohmann::json{{"page_size", 0}}, nlohmann::json{{"context_slots", 33}},
-             nlohmann::json{{"input_mode", "unknown"}}, nlohmann::json{{"candidate_layout", "diagonal"}}, nlohmann::json{{"model_candidate_color", "#GG0000"}}, nlohmann::json{{"model_directory", "relative/path"}},
+             nlohmann::json{{"input_mode", "unknown"}}, nlohmann::json{{"candidate_layout", "diagonal"}}, nlohmann::json{{"model_candidate_color", "#GG0000"}}, nlohmann::json{{"user_candidate_color", "red"}}, nlohmann::json{{"model_directory", "relative/path"}},
              nlohmann::json{{"language_model_path", "relative.lm"}}, nlohmann::json{{"prefer_unigram_single_syllable", "true"}}}) {
             auto bad = config;
             bad.merge_patch(patch);

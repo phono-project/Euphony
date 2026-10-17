@@ -20,6 +20,7 @@ struct Candidate {
     bool model = false;
     size_t consumed = 0;
     std::vector<CandidatePiece> pieces;
+    bool user = false;
     bool operator==(const Candidate&) const = default;
 };
 struct Selection { std::string source, text, pinyin; };
@@ -138,7 +139,7 @@ struct Engine::Impl {
         const auto selection=previous ? previous->selection : state.selection;
         const auto key=request.value("key","");
         bool interaction=key=="Space" || key=="Up" || key=="Down" || key=="Tab" || key=="PageUp" ||
-            key=="PageDown" || key=="-" || key=="=" || key=="_" || key=="+";
+            key=="PageDown" || key=="-" || key=="=" || key=="_" || key=="+" || key=="Delete";
         if(key=="Select" || key=="Highlight") {
             const auto index=request.value("index",-1);
             interaction=index>=0 && static_cast<size_t>(index)<candidates.size();
@@ -178,6 +179,8 @@ struct Engine::Impl {
             state.error = completion.result.error;
             auto previous=candidateSnapshot(state);state.candidates.clear();
             std::unordered_set<std::string> seen;
+            for (const auto& candidate : state.dictionary)
+                if (candidate.user && seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
             for (const auto& decoded : completion.result.candidates) {
                 auto presentation = presentCandidate(decoded, completion.result.invalid,
                     config.value("invalid_input", "pass") == "delete" ? InvalidInputPolicy::Delete : InvalidInputPolicy::PassThrough);
@@ -290,7 +293,9 @@ struct Engine::Impl {
                 all.push_back(std::move(candidate));
             }
         }
-        std::stable_sort(all.begin(), all.end(), [](const auto& a,const auto& b) {
+        std::stable_sort(all.begin(), all.end(), [this](const auto& a,const auto& b) {
+            if (dictionary->frequency(a.pinyin,a.text) != dictionary->frequency(b.pinyin,b.text))
+                return dictionary->frequency(a.pinyin,a.text) > dictionary->frequency(b.pinyin,b.text);
             if (a.complete != b.complete) return a.complete;
             if (a.consumed != b.consumed) return a.consumed > b.consumed;
             return a.score > b.score;
@@ -323,7 +328,8 @@ struct Engine::Impl {
                 config.value("invalid_input", "pass") == "delete" ? InvalidInputPolicy::Delete : InvalidInputPolicy::PassThrough);
             std::string text; for (const auto& piece : presentation.pieces) text += piece.text;
             state.dictionary.push_back({text, presentation.committed, native.pinyin, false,
-                native.consumed, std::move(presentation.pieces)});
+                native.consumed, std::move(presentation.pieces),
+                dictionary && dictionary->frequency(native.pinyin,presentation.committed) != 0});
         }
         if (state.dictionary.empty() && converted.tokens.empty() && !converted.invalid.empty()) {
             auto presentation = presentCandidate({},converted.invalid,
@@ -485,6 +491,14 @@ struct Engine::Impl {
         }
         if (key == "Enter") { commit(state,output,state.selectedText()+state.raw); return true; }
         if (key == "Escape") { clear(state); return true; }
+        if (key == "Delete" && state.selection < state.candidates.size() && state.candidates[state.selection].user) {
+            if (request.contains("candidate_generation") && request.at("candidate_generation").get<uint64_t>() != state.candidateGeneration) return false;
+            const auto candidate = state.candidates[state.selection];
+            dictionary->forget(candidate.pinyin,candidate.commit);
+            if (!learningFile.empty()) dictionary->saveLearning(learningFile);
+            update(session,state);
+            return true;
+        }
         if (key == "Up" || key == "Down") {
             cancel(state,true);
             if (!state.candidates.empty()) state.selection = (state.selection + state.candidates.size() + (key=="Down" ? 1 : -1)) % state.candidates.size();
@@ -518,6 +532,7 @@ struct Engine::Impl {
             json pieces = json::array();
             for (const auto& piece : candidate.pieces) pieces.push_back({{"text",piece.text},{"deleted",piece.deleted}});
             candidates.push_back({{"text",candidate.text},{"commit",prefix+candidate.commit},{"model",candidate.model},
+                {"user",candidate.user},
                 {"continues",!candidate.model && candidate.consumed < state.raw.size()},{"pieces",std::move(pieces)}});
         }
         return {{"version",1},{"session",session},{"seq",seq},{"eaten",eaten},{"preedit",prefix+state.raw},
@@ -526,6 +541,7 @@ struct Engine::Impl {
             {"selection",state.selection},{"page",state.selection/pageSize()},{"page_size",pageSize()},
             {"candidate_layout",config.value("candidate_layout", "vertical")},
             {"model_candidate_color",config.value("model_candidate_color", "#DFF2E5")},
+            {"user_candidate_color",config.value("user_candidate_color", "#FF0000")},
             {"generation",state.generation},{"candidate_generation",state.candidateGeneration},{"candidate_source",state.candidateSource},
             {"pending",state.pending},{"error",state.error}};
     }

@@ -23,7 +23,7 @@ nlohmann::json default_config() {
     return {{"schema_version", 1}, {"model_directory", path_string(model)}, {"core_library", path_string(core)},
         {"dictionary_path", path_string(bin / L"data/libime.tsv")}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
         {"prefer_unigram_single_syllable", true}, {"input_mode", "pinyin"}, {"shuangpin_scheme", "xiaohe"},
-        {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
+        {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"user_candidate_color", "#FF0000"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
         {"learning", true}, {"chinese_punctuation", true}, {"full_width", false}, {"invalid_input", "pass"}, {"context_slots", 4}, {"user_directory", path_string(user_directory())},
         {"engine", {{"schema_version", "1.0"}, {"tokenizer", {{"normalization", {{"lowercase_ascii", true},
             {"normalize_v_to_u", true}, {"separators", "'"}}}, {"segment_mode", "safe"}, {"use_segmenter", true},
@@ -46,10 +46,12 @@ void validate_config(const nlohmann::json& c) {
     integer(c, "context_slots", 1, 32);
     choice(c, "input_mode", {"pinyin", "shuangpin"});
     choice(c, "candidate_layout", {"vertical", "horizontal"});
-    if (!c.contains("model_candidate_color") || !c["model_candidate_color"].is_string()) throw std::runtime_error("Candidate color must be #RRGGBB");
-    const auto color=c["model_candidate_color"].get<std::string>();
-    if (color.size()!=7 || color[0]!='#' || color.find_first_not_of("0123456789abcdefABCDEF",1)!=std::string::npos)
-        throw std::runtime_error("Candidate color must be #RRGGBB");
+    for (const auto* key : {"model_candidate_color", "user_candidate_color"}) {
+        if (!c.contains(key) || !c[key].is_string()) throw std::runtime_error("Candidate color must be #RRGGBB");
+        const auto color=c[key].get<std::string>();
+        if (color.size()!=7 || color[0]!='#' || color.find_first_not_of("0123456789abcdefABCDEF",1)!=std::string::npos)
+            throw std::runtime_error("Candidate color must be #RRGGBB");
+    }
     choice(c, "shuangpin_scheme", {"ziranma", "ms", "ziguang", "abc", "zhongwenzhixing", "pinyinjiajia", "xiaohe"});
     choice(c, "invalid_input", {"pass", "delete"});
     if (!c.at("engine").is_object() || c.at("engine").value("schema_version", "") != "1.0" ||
