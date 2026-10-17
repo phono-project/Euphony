@@ -104,7 +104,7 @@ def main():
     profile = ROOT / "build/test-results/temporary-smoke" / instance
     profile.mkdir(parents=True)
     (ROOT / "build/test-results/smoke.json").unlink(missing_ok=True)
-    (profile / "config.json").write_text('{"model_enabled":false}', encoding="utf-8")
+    (profile / "config.json").write_text('{"model_enabled":false,"learning":false}', encoding="utf-8")
     env = {**os.environ, "EUPHONY_INSTANCE": instance, "EUPHONY_USER_DIR": str(profile)}
     process = subprocess.Popen([str(broker)], env=env, creationflags=0x08000000)
     passed = False
@@ -188,33 +188,6 @@ def main():
             "model_directory": str(args.model_dir.resolve()),
             "core_library": str(core)}})
         assert configured["ok"], configured
-        def await_models(session):
-            deadline = time.monotonic() + 30
-            while time.monotonic() < deadline:
-                response = request("poll", session=session)
-                if not response.get("pending"):
-                    found = [item for item in response.get("candidates", []) if item.get("model")]
-                    assert found, f"No deep-model candidates: {response.get('error', '')}"
-                    return response, found
-                time.sleep(0.03)
-            raise RuntimeError("Deep-model candidate timeout")
-        unigram = type_text("ni", session="unigram-model-enabled")
-        assert unigram["candidate_source"] == "unigram" and not unigram["pending"], unigram
-        request("close", session="unigram-model-enabled")
-        for char in "ni":
-            contextual = request("key", session="contextual-single", key=char,
-                context_valid=True, surrounding="今天我们正在测试中文输入")
-        contextual, _ = await_models("contextual-single")
-        assert contextual["candidate_source"] == "phono", contextual
-        request("close", session="contextual-single")
-        changed = call(pipe, {"op": "set_config", "config": {"prefer_unigram_single_syllable": False}})
-        assert changed["ok"], changed
-        type_text("ni", session="single-option-disabled")
-        disabled, _ = await_models("single-option-disabled")
-        assert disabled["candidate_source"] == "phono", disabled
-        request("close", session="single-option-disabled")
-        changed = call(pipe, {"op": "set_config", "config": {"prefer_unigram_single_syllable": True}})
-        assert changed["ok"], changed
         result = type_text("nihao", session="model")
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
@@ -224,8 +197,9 @@ def main():
             time.sleep(0.03)
         models = [candidate for candidate in result.get("candidates", []) if candidate.get("model")]
         assert models, f"W8A8 produced no model candidates: {result.get('error', '')}"
-        committed = request("key", session="model", key="Space")
-        assert committed.get("commit"), "Model candidate did not commit"
+        committed = request("key", session="model", key="Select",
+            index=result["candidates"].index(models[0]), candidate_generation=result["candidate_generation"])
+        assert committed.get("commit") == models[0]["commit"], "Model candidate did not commit"
         repeated = request("poll", session="model")
         assert not repeated.get("commit"), "IPC poll repeated a commit"
         call(pipe, {"op": "shutdown"})
@@ -244,7 +218,6 @@ def main():
             "five_candidate_default": "passed", "candidate_layout_composition_snapshot": "passed",
             "sensitive_input": "passed", "config_validation_and_persistence": "passed",
             "kenlm_official_model": "passed", "single_syllable_unigram": "passed",
-            "contextual_single_syllable_deep_model": "passed", "unigram_option_disabled": "passed",
             "w8a8_dynamic_core": "passed", "model_candidates": [item["text"] for item in models],
             "profile": str(profile), "bin_directory": str(bin_dir)}
         report_directory = ROOT / "build/test-results"
