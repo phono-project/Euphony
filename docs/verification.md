@@ -110,9 +110,9 @@ Alternatively, set `PHONO_TEST_MODEL_DIR`. The caller owns that path, with no ad
 
 ## 诊断 / Diagnostics
 
-工作流即使失败也会尝试将已生成的报告、日志、截图和 smoke 失败配置上传为 `euphony-diagnostics-<run_id>-<attempt>`，保留 7 天。smoke 运行阶段捕获的异常记录在 `build/test-results/temporary-smoke/<instance>/failure.json`；更早的失败请查看 job 日志。
+工作流仅在失败时将已生成的报告、日志、截图和 smoke 失败配置上传为 `euphony-diagnostics-<run_id>-<attempt>`，保留 7 天。成功执行不额外上传诊断附件，执行记录可查 job 日志。smoke 运行阶段捕获的异常记录在 `build/test-results/temporary-smoke/<instance>/failure.json`；更早的失败请查看 job 日志。
 
-Even on failure, the workflow attempts to upload generated reports, logs, screenshots and failed smoke profiles as `euphony-diagnostics-<run_id>-<attempt>`, retained for seven days. Exceptions caught during smoke execution are recorded in `build/test-results/temporary-smoke/<instance>/failure.json`; consult the job log for earlier failures.
+Only failed runs upload generated reports, logs, screenshots and failed smoke profiles as `euphony-diagnostics-<run_id>-<attempt>`, retained for seven days. Successful runs do not upload a separate diagnostics artifact; their execution records remain in job logs. Exceptions caught during smoke execution are recorded in `build/test-results/temporary-smoke/<instance>/failure.json`; consult the job log for earlier failures.
 
 ## 桌面验证 / Desktop validation
 

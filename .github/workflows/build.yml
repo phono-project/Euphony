@@ -108,7 +108,7 @@ jobs:
           if-no-files-found: error
 
       - name: Preserve verification diagnostics
-        if: ${{ always() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: euphony-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
