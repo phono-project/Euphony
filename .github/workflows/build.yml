@@ -61,9 +61,11 @@ jobs:
         if: inputs.clean_dependencies != true
         with:
           path: |
-            .deps
+            .deps/vcpkg-installed
+            .deps/webview2
+            .deps/phono-core-*-windows-x64
             data/zh_CN.lm
-          key: windows-dependencies-${{ steps.dependencies.outputs.key }}
+          key: windows-installed-dependencies-${{ steps.dependencies.outputs.key }}
       - name: Prepare SDK, WebView2, dictionary and KenLM
         env:
           VCPKG_ROOT: C:/vcpkg

@@ -16,6 +16,9 @@ URL = SOURCE["url"]
 
 def main(source_only=False):
     output = ROOT / "data/zh_CN.lm"
+    if output.is_file() and not source_only:
+        print("libime KenLM model ready.", flush=True)
+        return
     tool = ROOT / ".deps/vcpkg-installed/x64-windows-static/tools/kenlm/build_binary.exe"
     work = ROOT / ".deps/libime-lm"
     work.mkdir(parents=True, exist_ok=True)
@@ -31,9 +34,6 @@ def main(source_only=False):
         actual = hashlib.file_digest(stream, "sha256").hexdigest()
     if actual != SOURCE["sha256"]:
         raise SystemExit("Language-model source checksum mismatch")
-    if output.is_file() and not source_only:
-        print("libime KenLM model ready.", flush=True)
-        return
     if not arpa.is_file():
         with archive.open("rb") as source, zstandard.ZstdDecompressor().stream_reader(source) as stream:
             with tarfile.open(fileobj=stream, mode="r|") as members:

@@ -65,9 +65,9 @@ CTest requires x64 `common`, `engine`, `tsf_policy`, `tsf_smoke` and both x86 TS
 
 `dependencies.json` pins the Windows x64 Release SDK from `phono-project/phono-core`, currently `phono-core-sdk-0.1.1-windows-x64.zip`. `tools/download_core.py` downloads to `.deps/phono-core-0.1.1-windows-x64` and checks that the installed version matches the pinned version. Builds use the SDK’s C ABI header, DLL, and licenses without fetching core sources. The pinned core Release must publish the asset before a first complete build.
 
-WebView2 SDK、词库来源和 KenLM 构建依赖使用固定版本；下载与生成结果缓存在 `.deps` 和 `data/zh_CN.lm`。CI 可复用缓存，但 `setup` 负责从无缓存状态准备完整依赖。显式 SDK 覆盖可通过 `PHONO_CORE_SDK_DIR` 或构建入口的 `--core-sdk` 参数传入。
+WebView2 SDK、词库来源和 KenLM 构建依赖使用固定版本。CI 只缓存 `.deps/vcpkg-installed`、`.deps/webview2`、core SDK 目录和 `data/zh_CN.lm`，不保存 vcpkg 构建树、下载目录或解压后的 ARPA 中间文件。已有语言模型可直接复用，无需下载源归档；`setup` 仍可从无缓存状态准备完整依赖。显式 SDK 覆盖可通过 `PHONO_CORE_SDK_DIR` 或构建入口的 `--core-sdk` 参数传入。
 
-WebView2 SDK, dictionary sources, and KenLM build dependencies use pinned versions. Downloads and generated results are cached in `.deps` and `data/zh_CN.lm`. CI may reuse caches, while `setup` prepares complete dependencies from an empty cache. Supply an explicit SDK override through `PHONO_CORE_SDK_DIR` or the build entry point’s `--core-sdk` argument.
+WebView2 SDK, dictionary sources, and KenLM build dependencies use pinned versions. CI caches only `.deps/vcpkg-installed`, `.deps/webview2`, the core SDK directory, and `data/zh_CN.lm`, excluding vcpkg build trees, download directories, and extracted ARPA intermediates. An existing language model is reused without downloading its source archive; `setup` still prepares complete dependencies from an empty cache. Supply an explicit SDK override through `PHONO_CORE_SDK_DIR` or the build entry point’s `--core-sdk` argument.
 
 ```powershell
 pixi run python tools/workflow.py build --core-sdk C:\SDKs\phono-core
