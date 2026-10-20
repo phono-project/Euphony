@@ -1,4 +1,4 @@
-"""Fetch the small official WebView2 SDK; C++ libraries come from pixi."""
+"""Prepare the official WebView2 SDK and KenLM dependencies."""
 from pathlib import Path
 import urllib.request
 import zipfile
@@ -7,7 +7,6 @@ import shutil
 import subprocess
 import hashlib
 import json
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPENDENCIES = json.loads((ROOT / "dependencies.json").read_text(encoding="utf-8"))
@@ -47,7 +46,6 @@ def main():
             archive.extractall(target)
     print("WebView2 SDK ready. Build tools and JSON are managed by pixi.")
     setup_kenlm()
-    subprocess.run([sys.executable, str(ROOT / "tools/import_libime.py"), "--download", "--output", str(ROOT / "data/libime.tsv")], check=True)
     from prepare_libime_lm import main as prepare_language_model
     prepare_language_model()
 

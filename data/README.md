@@ -12,9 +12,9 @@ The engine builds its own lookup tries for characters, phrases, incomplete sylla
 
 `tools/prepare_libime_lm.py` obtains the official language model from [lm_sc.arpa-20260629.tar.zst](https://download.fcitx-im.org/data/lm_sc.arpa-20260629.tar.zst), generates `zh_CN.lm` with KenLM’s `-s -a 22 -q 4 trie` options, and includes it in packages. Sources are cached in `.deps/libime-lm`; the pinned vcpkg manifest installs the KenLM tool.
 
-词库与语言模型的下载来源、版本和 SHA-256 在 `dependencies.json` 中固定。`pixi run setup` 准备和验证这些来源，并复用 KenLM 和已生成的语言模型。独立复现词库或模型可运行：
+词库与语言模型的下载来源、版本和 SHA-256 在 `dependencies.json` 中固定。日常构建直接使用已提交的 `data/libime.tsv`；`pixi run setup` 准备 KenLM 和语言模型。更新词库时显式运行转换脚本并提交生成结果；独立复现词库或模型可运行：
 
-`dependencies.json` pins download sources, versions, and SHA-256 for the dictionary and language model. `pixi run setup` prepares and verifies these sources, reusing KenLM and generated language-model output. To reproduce the dictionary or model separately, run:
+`dependencies.json` pins download sources, versions, and SHA-256 for the dictionary and language model. Routine builds use the committed `data/libime.tsv`; `pixi run setup` prepares KenLM and the language model. When updating the dictionary, run the conversion script explicitly and commit the output. To reproduce the dictionary or model separately, run:
 
 ```powershell
 pixi run python tools/import_libime.py --download --output data/libime.tsv
