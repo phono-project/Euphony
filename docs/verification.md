@@ -32,7 +32,11 @@ Dictionary candidates return first, followed asynchronously by model candidates.
 
 测试包括日常检查、安装器生命周期、发布验证和桌面交互，均复用本仓库脚本。日常与桌面验证使用隔离用户配置和管道；安装器检查在一次性 runner 上注册并卸载输入法。模型通过参数或环境变量传入。
 
+同一 PR 的新提交会取消旧的 CI 执行；Release 与手动执行使用各自的运行分组，不受 PR 取消影响。
+
 Validation includes routine checks, installer lifecycle, release validation, and desktop interaction, all using this repository’s scripts. Routine and desktop checks use isolated user preferences and pipes. Installer checks register and remove the input method on a disposable runner. Models are supplied by arguments or environment variables.
+
+New commits to a PR cancel its older CI runs. Release and manual runs use their own run groups and are unaffected by PR cancellation.
 
 ## 日常检查 / Routine checks
 
