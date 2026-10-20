@@ -14,6 +14,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=SDK)
     args = parser.parse_args()
+    installed_version = args.output / "share/phono-core/VERSION"
+    if installed_version.is_file() and installed_version.read_text(encoding="utf-8").strip() == LOCK["version"]:
+        print(args.output.resolve())
+        return
     cache = ROOT / ".deps/core-downloads"
     cache.mkdir(parents=True, exist_ok=True)
     base = f"https://github.com/{LOCK['repository']}/releases/download/v{LOCK['version']}/"
