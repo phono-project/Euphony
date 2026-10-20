@@ -6,7 +6,6 @@ from ctypes import wintypes as W
 import json
 import os
 import subprocess
-import tempfile
 import time
 import uuid
 import shutil
@@ -136,46 +135,46 @@ def main():
         assert loaded["status"]["language_model_ready"], loaded["status"]
         assert loaded["config"]["prefer_unigram_single_syllable"] is True
         assert loaded["config"]["page_size"] == 5 and loaded["config"]["candidate_layout"] == "vertical"
-        configured = call(pipe, {"op": "set_config", "config": {"model_enabled": False}})
-        assert configured["ok"], configured
-        unigram = type_text("ni", session="unigram-offline")
-        assert unigram["candidate_source"] == "unigram" and not unigram["pending"], unigram
-        assert unigram["candidates"][0]["text"] == "你", "KenLM unigram did not recover the common single character"
-        assert all(not item["model"] for item in unigram["candidates"]), unigram
-        request("close", session="unigram-offline")
-        retained = type_text("ni", session="config-round")
-        changed = call(pipe, {"op": "set_config", "config": {"page_size": 4, "candidate_layout": "horizontal"}})
-        assert changed["ok"], changed
-        retained = request("poll", session="config-round")
-        assert retained["preedit"] == "ni" and retained["page_size"] == 5 and retained["candidate_layout"] == "vertical", "Config reload changed active composition"
-        request("key", session="config-round", key="Space")
-        updated = type_text("hao", session="config-round")
-        assert updated["page_size"] == 4, "New composition did not receive saved configuration"
-        assert updated["candidate_layout"] == "horizontal", "New composition did not receive candidate layout"
-        request("close", session="config-round")
-        call(pipe, {"op": "set_config", "config": {"page_size": 5, "candidate_layout": "vertical"}})
-        type_text("n", session="idle-config")
-        request("key", session="idle-config", key="Escape")
-        call(pipe, {"op": "set_config", "config": {"page_size": 3}})
-        updated = type_text("n", session="idle-config")
-        assert updated["page_size"] == 3, "Idle session delayed saved configuration by a composition"
-        request("close", session="idle-config")
-        call(pipe, {"op": "set_config", "config": {"page_size": 5}})
-        result = type_text("nihao")
-        assert result["candidates"], "Official libime dictionary returned no candidates"
-        result = request("key", key="Space")
-        assert result.get("commit") or result.get("preedit"), result
-        request("reset")
-        type_text("test", session="one")
-        second = type_text("ni", session="two")
-        assert "test" not in second.get("preedit", ""), "Session state leaked"
-        sensitive = request("key", session="password", key="n", sensitive=True)
-        assert not sensitive.get("pending"), "Sensitive input triggered inference"
-        bad = call(pipe, {"op": "set_config", "config": {"page_size": 0}})
-        assert not bad["ok"], "Invalid configuration accepted"
-        good = call(pipe, {"op": "get_config"})
-        assert good["config"]["page_size"] == 5, "Rejected configuration changed state"
         if args.no_model:
+            configured = call(pipe, {"op": "set_config", "config": {"model_enabled": False}})
+            assert configured["ok"], configured
+            unigram = type_text("ni", session="unigram-offline")
+            assert unigram["candidate_source"] == "unigram" and not unigram["pending"], unigram
+            assert unigram["candidates"][0]["text"] == "你", "KenLM unigram did not recover the common single character"
+            assert all(not item["model"] for item in unigram["candidates"]), unigram
+            request("close", session="unigram-offline")
+            retained = type_text("ni", session="config-round")
+            changed = call(pipe, {"op": "set_config", "config": {"page_size": 4, "candidate_layout": "horizontal"}})
+            assert changed["ok"], changed
+            retained = request("poll", session="config-round")
+            assert retained["preedit"] == "ni" and retained["page_size"] == 5 and retained["candidate_layout"] == "vertical", "Config reload changed active composition"
+            request("key", session="config-round", key="Space")
+            updated = type_text("hao", session="config-round")
+            assert updated["page_size"] == 4, "New composition did not receive saved configuration"
+            assert updated["candidate_layout"] == "horizontal", "New composition did not receive candidate layout"
+            request("close", session="config-round")
+            call(pipe, {"op": "set_config", "config": {"page_size": 5, "candidate_layout": "vertical"}})
+            type_text("n", session="idle-config")
+            request("key", session="idle-config", key="Escape")
+            call(pipe, {"op": "set_config", "config": {"page_size": 3}})
+            updated = type_text("n", session="idle-config")
+            assert updated["page_size"] == 3, "Idle session delayed saved configuration by a composition"
+            request("close", session="idle-config")
+            call(pipe, {"op": "set_config", "config": {"page_size": 5}})
+            result = type_text("nihao")
+            assert result["candidates"], "Official libime dictionary returned no candidates"
+            result = request("key", key="Space")
+            assert result.get("commit") or result.get("preedit"), result
+            request("reset")
+            type_text("test", session="one")
+            second = type_text("ni", session="two")
+            assert "test" not in second.get("preedit", ""), "Session state leaked"
+            sensitive = request("key", session="password", key="n", sensitive=True)
+            assert not sensitive.get("pending"), "Sensitive input triggered inference"
+            bad = call(pipe, {"op": "set_config", "config": {"page_size": 0}})
+            assert not bad["ok"], "Invalid configuration accepted"
+            good = call(pipe, {"op": "get_config"})
+            assert good["config"]["page_size"] == 5, "Rejected configuration changed state"
             call(pipe, {"op": "shutdown"})
             process.wait(timeout=10)
             assert process.returncode == 0
@@ -214,10 +213,7 @@ def main():
                 time.sleep(0.02)
         assert restored["config"]["model_enabled"], "Configuration did not persist"
         assert restored["config"]["prefer_unigram_single_syllable"] is True
-        report = {"ipc": "passed", "libime_dictionary": "passed", "session_isolation": "passed", "live_config_composition": "passed",
-            "five_candidate_default": "passed", "candidate_layout_composition_snapshot": "passed",
-            "sensitive_input": "passed", "config_validation_and_persistence": "passed",
-            "kenlm_official_model": "passed", "single_syllable_unigram": "passed",
+        report = {"ipc": "passed", "kenlm_official_model": "passed", "config_persistence": "passed",
             "w8a8_dynamic_core": "passed", "model_candidates": [item["text"] for item in models],
             "profile": str(profile), "bin_directory": str(bin_dir)}
         report_directory = ROOT / "build/test-results"

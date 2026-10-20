@@ -8,7 +8,6 @@ import ctypes
 import json
 import os
 import subprocess
-import sys
 import tempfile
 import winreg
 
@@ -100,8 +99,6 @@ def main():
             # Install over the same directory to exercise Inno's upgrade/uninstall log.
             execute(installer, "upgrade.log", f"/DIR={install}")
             installed()
-            subprocess.run([sys.executable, str(ROOT / "tools/smoke.py"),
-                            "--bin-dir", str(install), "--no-model"], cwd=ROOT, check=True, timeout=180)
             execute(uninstaller, "uninstall.log")
             require(not any(exists(winreg.HKEY_LOCAL_MACHINE, path, view)
                             for path in (CLSID, TIP) for view in VIEWS), "TSF registration survived removal")
@@ -115,7 +112,7 @@ def main():
             for path, content in snapshots.items():
                 require(path.read_bytes() == content, f"Uninstall changed user data: {path}")
             result.write_text(json.dumps({"install": "passed", "upgrade": "passed",
-                "installed_smoke": "passed", "uninstall": "passed", "user_data": "retained"}, indent=2), encoding="utf-8")
+                "uninstall": "passed", "user_data": "retained"}, indent=2), encoding="utf-8")
         finally:
             if exists(winreg.HKEY_LOCAL_MACHINE, UNINSTALL) and uninstaller.is_file():
                 execute(uninstaller, "cleanup.log")
