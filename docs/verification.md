@@ -97,7 +97,11 @@ Packaging starts with a clean staging directory each time and includes both TSF 
 
 本地下载程序将固定修订的 W8A8 模型保存到本仓库 `.cache/models/phonop2c_v2_2_base_w8a8_model`，随后向验证入口显式传入目录：
 
+CI 按模型仓库和固定 revision 缓存该目录，命中后跳过下载，仍执行真实推理验证。`clean_dependencies` 同时跳过模型缓存，以验证完整下载流程。
+
 The local downloader saves the pinned W8A8 revision to this repository’s `.cache/models/phonop2c_v2_2_base_w8a8_model`. Then pass that directory explicitly to validation:
+
+CI caches this directory by model repository and pinned revision. Cache hits skip downloading but still run real-inference validation. `clean_dependencies` also bypasses the model cache to exercise the complete download path.
 
 ```powershell
 pixi run python tools/download_models.py

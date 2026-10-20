@@ -61,6 +61,7 @@ jobs:
           $deps=Get-Content dependencies.json -Raw | ConvertFrom-Json
           $vcpkg=Get-Content vcpkg.json -Raw | ConvertFrom-Json
           "key=$($vcpkg.'builtin-baseline')-$($deps.webview2.version)-$($deps.dictionary.version)-$($deps.language_model.version)-$($deps.core.version)" >> $env:GITHUB_OUTPUT
+          "model=$($deps.model.repository)-$($deps.model.revision)" >> $env:GITHUB_OUTPUT
       - uses: actions/cache@v4
         if: inputs.clean_dependencies != true
         with:
@@ -90,8 +91,15 @@ jobs:
       - name: Validate installer, upgrade and uninstaller on the disposable runner
         if: github.event_name == 'release' || inputs.release_checks == true
         run: pixi run python tools/installer_test.py
+      - name: Cache the fixed release model
+        id: release_model
+        if: (github.event_name == 'release' || inputs.release_checks == true) && inputs.clean_dependencies != true
+        uses: actions/cache@v4
+        with:
+          path: .cache/models/phonop2c_v2_2_base_w8a8_model
+          key: windows-release-model-${{ steps.dependencies.outputs.model }}
       - name: Download the fixed release model
-        if: github.event_name == 'release' || inputs.release_checks == true
+        if: (github.event_name == 'release' || inputs.release_checks == true) && steps.release_model.outputs.cache-hit != 'true'
         run: pixi run python tools/download_models.py
       - name: Validate real inference from the extracted ZIP
         if: github.event_name == 'release' || inputs.release_checks == true
