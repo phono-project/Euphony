@@ -38,8 +38,8 @@ jobs:
           pixi-version: v0.78.0
           cache: ${{ inputs.clean_dependencies != true }}
           locked: true
-      - name: Test verification failure paths
-        run: pixi run python -m unittest discover -s tests -p test_verification.py -v
+      - name: Test smoke failure cleanup
+        run: pixi run python -m unittest discover -s tests -p test_smoke.py -v
       - name: Validate release tag and default branch
         if: github.event_name == 'release'
         env:

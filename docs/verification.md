@@ -55,9 +55,9 @@ Build trees are `build/x64` and `build/x86`. x86 builds only TSF and connects to
 
 `pixi run test` builds first, then runs CTest for both architectures, model-free IPC and registration-helper checks. Model-free checks cover dictionary and KenLM paths, settings and learning, cancellation, private fields, IPC lifecycle, and TSF input behavior. Missing neural models are never counted as successful release inference.
 
-CTest 要求 x64 的 `common`、`engine`、`tsf_policy`、`tsf_smoke` 以及 x86 的两项 TSF 测试存在并通过；允许新增测试，必要测试缺失或跳过则失败。报告与发现日志保存在 `build/<arch>/test-results`。
+CTest 运行 x64 的 `common`、`engine`、`tsf_policy`、`tsf_smoke` 以及 x86 的两项 TSF 测试。直接使用 CTest 的退出码和 `--no-tests=error` 判定结果，JUnit 报告与执行日志保存在 `build/<arch>/test-results`。
 
-CTest requires x64 `common`, `engine`, `tsf_policy`, `tsf_smoke` and both x86 TSF tests to exist and pass. Additional tests are allowed; missing or skipped required tests fail verification. Reports and discovery logs are saved under `build/<arch>/test-results`.
+CTest runs x64 `common`, `engine`, `tsf_policy`, `tsf_smoke` and both x86 TSF tests. Results use CTest's exit code and `--no-tests=error` directly. JUnit reports and execution logs are saved under `build/<arch>/test-results`.
 
 ## SDK 与缓存 / SDK and caches
 
