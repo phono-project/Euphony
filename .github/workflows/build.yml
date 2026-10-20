@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_checks:
-        description: Run real-model and extracted-ZIP validation
+        description: Run installer lifecycle, real-model and extracted-ZIP validation
         type: boolean
         default: false
       clean_dependencies:
@@ -84,6 +84,7 @@ jobs:
       - name: Build Inno Setup installer
         run: pixi run python tools/workflow.py installer
       - name: Validate installer, upgrade and uninstaller on the disposable runner
+        if: github.event_name == 'release' || inputs.release_checks == true
         run: pixi run python tools/installer_test.py
       - name: Download the fixed release model
         if: github.event_name == 'release' || inputs.release_checks == true
