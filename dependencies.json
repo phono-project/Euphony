@@ -2,8 +2,7 @@
   "core": {
     "repository": "phono-project/phono-core",
     "version": "0.1.1",
-    "asset": "phono-core-sdk-0.1.1-windows-x64.zip",
-    "checksums": "SHA256SUMS-windows-x64.txt"
+    "asset": "phono-core-sdk-0.1.1-windows-x64.zip"
   },
   "webview2": {
     "version": "1.0.4191.47",

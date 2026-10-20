@@ -94,7 +94,6 @@ else()
     install(DIRECTORY "${PHONO_CORE_SDK_DIR}/share/licenses/phono-core/" DESTINATION licenses/phono-core)
     install(FILES "${PHONO_CORE_SDK_DIR}/share/phono-core/VERSION" DESTINATION licenses/phono-core)
     install(FILES "${PHONO_CORE_SDK_DIR}/share/phono-core/build-info.json" DESTINATION licenses/phono-core OPTIONAL)
-    install(FILES "${PHONO_CORE_SDK_DIR}/core-dependency.json" DESTINATION licenses/phono-core OPTIONAL)
     install(FILES data/libime.tsv data/zh_CN.lm DESTINATION data)
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.deps/vcpkg-installed/x64-windows-static/share/" DESTINATION licenses/vcpkg
         FILES_MATCHING PATTERN copyright)

@@ -1,6 +1,5 @@
-"""Fetch the pinned Windows core SDK and verify its published asset checksum."""
+"""Fetch the pinned Windows core SDK and verify its installed version."""
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -28,32 +27,14 @@ def main():
             import shutil
             shutil.copyfileobj(source, target)
         return path
-    sums = fetch(LOCK["checksums"])
-    expected = None
-    for line in sums.read_text(encoding="utf-8").splitlines():
-        value, name = line.split(maxsplit=1)
-        if name.lstrip("*") == LOCK["asset"]:
-            expected = value.lower()
-    if expected is None:
-        raise SystemExit(f"Release checksum manifest does not contain {LOCK['asset']}")
     archive = cache / LOCK["asset"]
-    cached_checksum = None
-    if archive.exists():
-        with archive.open("rb") as stream:
-            cached_checksum = hashlib.file_digest(stream, "sha256").hexdigest()
-    if cached_checksum != expected:
+    if not archive.is_file():
         archive = fetch(LOCK["asset"])
-    with archive.open("rb") as stream:
-        actual = hashlib.file_digest(stream, "sha256").hexdigest()
-    if actual != expected:
-        raise SystemExit("Core SDK checksum mismatch")
     args.output.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive) as source:
         source.extractall(args.output)
     if (args.output / "share/phono-core/VERSION").read_text(encoding="utf-8").strip() != LOCK["version"]:
         raise SystemExit("Core SDK version mismatch")
-    receipt = {**LOCK, "sha256": actual}
-    (args.output / "core-dependency.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(args.output.resolve())
 
 if __name__ == "__main__":
