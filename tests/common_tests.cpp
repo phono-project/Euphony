@@ -12,6 +12,7 @@ int main() {
         if (!invalid) throw std::runtime_error("Invalid UTF8 accepted");
         auto config = euphony::default_config();
         euphony::validate_config(config);
+        if (config["full_width_digits"]!=false || config["full_width_symbols"]!=false) throw std::runtime_error("Digits and functional symbols must default to half-width");
         if (config["theme"] != "system" || config["dark_background_color"] != "#282828") throw std::runtime_error("Theme defaults incorrect");
         if (config["show_preedit"] != false) throw std::runtime_error("Preedit must default to hidden");
         if (config["user_candidate_color"] != "#FBE4EC") throw std::runtime_error("Memory color default is not red");
@@ -19,7 +20,7 @@ int main() {
         if (config["prefer_unigram_single_syllable"] != true) throw std::runtime_error("Single-syllable unigram default is not enabled");
         if (config["user_words_exact_only"] != true) throw std::runtime_error("Exact-match user priority default is not enabled");
         if (config["user_words_enabled"] != true || config["user_words_first"] != true) throw std::runtime_error("User-word defaults are not enabled");
-        for (const auto& patch : {nlohmann::json{{"theme", "unknown"}}, nlohmann::json{{"show_preedit", "true"}}, nlohmann::json{{"dark_background_color", "gray"}}, nlohmann::json{{"page_size", 0}}, nlohmann::json{{"context_slots", 33}},
+        for (const auto& patch : {nlohmann::json{{"full_width_digits", "true"}}, nlohmann::json{{"full_width_symbols", 1}}, nlohmann::json{{"theme", "unknown"}}, nlohmann::json{{"show_preedit", "true"}}, nlohmann::json{{"dark_background_color", "gray"}}, nlohmann::json{{"page_size", 0}}, nlohmann::json{{"context_slots", 33}},
              nlohmann::json{{"input_mode", "unknown"}}, nlohmann::json{{"candidate_layout", "diagonal"}}, nlohmann::json{{"model_candidate_color", "#GG0000"}}, nlohmann::json{{"user_candidate_color", "red"}}, nlohmann::json{{"model_directory", "relative/path"}},
              nlohmann::json{{"language_model_path", "relative.lm"}}, nlohmann::json{{"prefer_unigram_single_syllable", "true"}}, nlohmann::json{{"user_words_exact_only", "true"}},
              nlohmann::json{{"user_words_enabled", "true"}}, nlohmann::json{{"user_words_first", "true"}}}) {
@@ -37,7 +38,7 @@ int main() {
         if (recovered.load_error().empty()) throw std::runtime_error("Damaged config did not report recovery");
         { std::ifstream original(test_profile / L"config.json"); std::string content; original >> content;
           if (content != "{broken") throw std::runtime_error("Recovery overwrote the damaged config"); }
-        auto edited = recovered.prepare({{"dark_background_color", "#202020"}, {"theme", "dark"}, {"show_preedit", true}, {"page_size", 4}, {"candidate_layout", "horizontal"}, {"prefer_unigram_single_syllable", false},
+        auto edited = recovered.prepare({{"full_width_digits", true}, {"full_width_symbols", true}, {"dark_background_color", "#202020"}, {"theme", "dark"}, {"show_preedit", true}, {"page_size", 4}, {"candidate_layout", "horizontal"}, {"prefer_unigram_single_syllable", false},
             {"user_words_exact_only", false}, {"user_words_enabled", false}, {"user_words_first", false}, {"context", {{"max_context_length", 128}}}});
         recovered.save(edited);
         edited = recovered.prepare({{"context", {{"max_context_length", nullptr}}}});
@@ -49,6 +50,7 @@ int main() {
         if (restored.get()["user_words_exact_only"] != false) throw std::runtime_error("User-word exact-match preference did not persist");
         if (restored.get()["user_words_enabled"] != false || restored.get()["user_words_first"] != false) throw std::runtime_error("User-word enable and placement preferences did not persist");
         if (restored.get()["dark_background_color"]!="#202020" || restored.get()["background_color"]!="#FAFBFF" || restored.get()["show_preedit"]!=true) throw std::runtime_error("Independent palettes and preedit setting did not persist");
+        if (restored.get()["full_width_digits"]!=true || restored.get()["full_width_symbols"]!=true) throw std::runtime_error("Width preferences did not persist");
         if (restored.get()["candidate_layout"] != "horizontal") throw std::runtime_error("Candidate layout did not persist");
         std::cout << "Unicode and configuration checks passed\n";
         return 0;

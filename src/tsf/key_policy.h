@@ -11,9 +11,12 @@ inline bool deferred_key(std::string_view key) {
 }
 // TSF must decide whether to consume a key before an IPC reply arrives.
 // Keep this deliberately local and deterministic; model work stays in the broker.
-inline bool consumes(std::string_view key, bool active, bool shift, bool ctrl, bool alt, bool full_width=false, bool chinese_punctuation=true) {
+inline bool consumes(std::string_view key, bool active, bool shift, bool ctrl, bool alt, bool full_width=false, bool chinese_punctuation=true, bool full_width_digits=false, bool full_width_symbols=false) {
     if (ctrl || alt) return false;
-    if (full_width && (key=="Space" || (key.size()==1 && key[0]>=32 && key[0]<127))) return true;
+    const bool digit=key.size()==1 && key[0]>='0' && key[0]<='9';
+    const bool symbol=key.size()==1 && std::string_view("~@#%&*-=+|/").find(key[0])!=std::string_view::npos;
+    if (full_width && (!digit || full_width_digits) && (!symbol || full_width_symbols) &&
+        (key=="Space" || (key.size()==1 && key[0]>=32 && key[0]<127))) return true;
     if (key == "Tab") return active;
     if (shift && key.size() != 1) return false;
     if (key.size() == 1 && key[0] >= 'a' && key[0] <= 'z' && !shift) return true;

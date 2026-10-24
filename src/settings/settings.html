@@ -193,9 +193,11 @@
               <label class="toggle"><input id="chinese-punctuation" data-key="chinese_punctuation" type="checkbox" aria-label="中文标点"><span></span></label>
             </div>
             <div class="row">
-              <div class="row-label"><label for="full-width">全角字符</label><p>将直接输入的 ASCII 字符转换为全角形式。</p></div>
+              <div class="row-label"><label for="full-width">全角字符</label><p>将直接输入的 ASCII 字符转换为全角形式；数字与功能符号可单独设置。</p></div>
               <label class="toggle"><input id="full-width" data-key="full_width" type="checkbox" aria-label="全角字符"><span></span></label>
             </div>
+            <div class="row"><div class="row-label"><label for="full-width-digits">全角模式下使用全角数字</label><p>默认关闭，数字仍使用 0–9；开启后使用 ０–９。</p></div><label class="toggle"><input id="full-width-digits" data-key="full_width_digits" type="checkbox" aria-label="全角数字"><span></span></label></div>
+            <div class="row"><div class="row-label"><label for="full-width-symbols">全角模式下使用全角功能符号</label><p>默认关闭，~ @ # ¥ % &amp; * - = + | / 保持与半角模式一致；开启后转换为对应的全角符号。</p></div><label class="toggle"><input id="full-width-symbols" data-key="full_width_symbols" type="checkbox" aria-label="全角功能符号"><span></span></label></div>
           </section>
           <section id="resources">
             <div class="section-head"><h2>模型与词库</h2><p class="hint">Phono 生成上下文候选，libime 来源词库提供常用词。</p></div>
@@ -312,7 +314,7 @@
       theme:'system', background_color:'#FAFBFF', selected_candidate_color:'#E2EAFF', dark_background_color:'#282828', dark_selected_candidate_color:'#183B66', dark_model_candidate_color:'#204532', dark_user_candidate_color:'#442D50', show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
       prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true,
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
-      full_width:false, chinese_punctuation:true,
+      full_width:false, full_width_digits:false, full_width_symbols:false, chinese_punctuation:true,
       engine:{schema_version:'1.0', tokenizer:{use_segmenter:true, segment_mode:'safe', repair:false,
         max_pinyin_chars:128, normalization:{lowercase_ascii:true, normalize_v_to_u:true, separators:"'"}}},
       context:{schema_version:'1.0', min_accept_context:8, trial_ratio:0.25, decay_alpha:0.5, decay_lambda:0.02}

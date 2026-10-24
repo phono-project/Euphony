@@ -11,6 +11,11 @@ int main() {
             require(!consumes(key,false,false,false,false,false,false),"ASCII punctuation mode must pass through");
             require(!consumes(key,false,false,true,false),"Punctuation shortcuts must pass through");
         }
+        for(bool enabled : {false,true}) {
+            require(consumes("2",false,false,false,false,true,false,enabled,false)==enabled,"Frontend digit ownership follows width preference");
+            for(char c:std::string_view("~@#%&*-=+|/"))
+                require(consumes(std::string(1,c),false,false,false,false,true,false,false,enabled)==enabled,"Frontend symbol ownership follows width preference");
+        }
         require(consumes("a",false,false,false,false),"Pinyin starts without a broker round trip");
         require(!consumes("a",false,false,true,false),"Application shortcuts must pass through");
         require(consumes("Tab",true,true,false,false),"Reverse candidate paging preserves Shift");

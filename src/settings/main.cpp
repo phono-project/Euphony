@@ -527,7 +527,7 @@ private:
             if (!fields || fields.disabled) return {ready:false};
             const ids = ['input-mode','shuangpin-scheme','page-size','candidate-layout','model-candidate-color','user-candidate-color','invalid-input','learning',
                 'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','user-words-enabled','user-words-first','model-directory','core-library','dictionary-path','language-model-path','use-surrounding',
-                'history-characters','context-slots','chinese-punctuation','full-width','lowercase-ascii','normalize-v','separators',
+                'history-characters','context-slots','chinese-punctuation','full-width','full-width-digits','full-width-symbols','lowercase-ascii','normalize-v','separators',
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
                 'slack-interval','min-accept-context','trial-ratio','decay-alpha','decay-lambda'];
             const missing = ids.filter(id => !document.getElementById(id));
@@ -627,6 +627,7 @@ private:
                 shuangpin_scheme:document.getElementById('shuangpin-scheme').value,
                 model_enabled:document.getElementById('model-enabled').checked,
                 full_width:document.getElementById('full-width').checked,
+                full_width_digits:document.getElementById('full-width-digits').checked,full_width_symbols:document.getElementById('full-width-symbols').checked,
                 chinese_punctuation:document.getElementById('chinese-punctuation').checked,
                 viewport,footer_visible:footer.top >= 0 && footer.bottom <= innerHeight,
                 model_status:document.getElementById('model-status').textContent,
@@ -659,7 +660,7 @@ private:
                             test_dom_.value("language_model_picker", false) &&
                             test_dom_.value("scheme_toggle", false) && test_dom_.value("validation", false) &&
                             test_dom_.value("reverted", false) && test_dom_.value("footer_visible", false);
-                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "chinese_punctuation"})
+                        for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "full_width_digits", "full_width_symbols", "chinese_punctuation"})
                             valid = valid && test_dom_.at(key) == test_config_.at(key);
                         if (!valid) {
                             finish_self_test({{"ok", false}, {"error", "Settings DOM or configuration binding check failed"}, {"dom", test_dom_}});

@@ -99,7 +99,7 @@ int main() {
             check(finalized["commit"]=="尼","UIless Highlight then Select can use one candidate identity");
             check(a.request("key",",")["commit"]=="，","Chinese punctuation");
             for (const auto& [key, expected] : std::vector<std::pair<std::string,std::string>>{
-                {"\\","、"},{"/","、"},{"|","·"},{"$","￥"},{"^","……"},{"_","——"},{"{","『』"},{"}","』"}})
+                {"\\","、"},{"/","、"},{"|","·"},{"$","¥"},{"^","……"},{"_","——"},{"{","『』"},{"}","』"}})
                 check(a.request("key",key)["commit"]==expected,"Chinese punctuation mapping");
             auto pair=a.request("key","(");
             check(pair["commit"]=="（）" && pair["commit_cursor_back"]==1,"paired punctuation positions caret");
@@ -136,8 +136,24 @@ int main() {
             auto preserved=json::parse(preservedStream);
             check(preserved["selections"]["ni'hao'ma\t你好吗"]==1,"learning off does not record a new selection");
         }
+        for (bool full : {false,true}) for (bool digits : {false,true}) for (bool symbols : {false,true}) for (bool chinese : {false,true}) {
+            auto settings=config; settings["full_width"]=full; settings["full_width_digits"]=digits;
+            settings["full_width_symbols"]=symbols; settings["chinese_punctuation"]=chinese; settings["learning"]=false;
+            Engine engine(settings); Client client{engine,"width-options"};
+            auto number=client.request("key","2");
+            check(number["eaten"]==(full && digits),"digit conversion follows full-width preference");
+            if(full && digits) check(number["commit"]=="２","enabled digits use full-width form");
+            if (chinese) check(client.request("key","$")["commit"]==(full && symbols ? "￥" : "¥"),"Currency width follows functional-symbol preference");
+            for(const auto& [key,wide] : std::vector<std::pair<std::string,std::string>>{
+                {"~","～"},{"@","＠"},{"#","＃"},{"%","％"},{"&","＆"},{"*","＊"},{"-","－"},{"=","＝"},{"+","＋"},{"|","｜"},{"/","／"}}) {
+                auto result=client.request("key",key);
+                if(full && symbols) check(result["commit"]==wide,"enabled functional symbols use full-width form");
+                else if(chinese && (key=="|" || key=="/")) check(result["commit"]==(key=="|"?"·":"、"),"disabled symbols preserve half-width Chinese mapping");
+                else check(result["eaten"]==false,"disabled symbols pass through as ASCII");
+            }
+        }
         {
-            auto widthConfig=config; widthConfig["full_width"]=true; widthConfig["chinese_punctuation"]=false;
+            auto widthConfig=config; widthConfig["full_width"]=true; widthConfig["full_width_digits"]=true; widthConfig["chinese_punctuation"]=false;
             Engine fullWidth(widthConfig); Client client{fullWidth,"width"};
             check(client.request("key","1")["commit"]=="１","full-width digits");
             check(client.request("key","A",{{"shift",true}})["commit"]=="Ａ","full-width uppercase");

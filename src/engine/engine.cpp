@@ -425,9 +425,13 @@ struct Engine::Impl {
             if (!config.value("full_width",false)) return std::nullopt;
             if (key == "Space" || key == " ") return "　";
             if (key.size()!=1 || key[0] < '!' || key[0] > '~') return std::nullopt;
+            if (key[0]>='0' && key[0]<='9' && !config.value("full_width_digits",false)) return std::nullopt;
+            if (std::string_view("~@#%&*-=+|/").find(key[0])!=std::string_view::npos && !config.value("full_width_symbols",false)) return std::nullopt;
             const uint32_t code = uint32_t(static_cast<unsigned char>(key[0])) + 0xfee0;
             return std::string{char(0xe0 | (code >> 12)),char(0x80 | ((code >> 6) & 0x3f)),char(0x80 | (code & 0x3f))};
         };
+        if (config.value("full_width",false) && config.value("full_width_symbols",false) && key.size()==1 &&
+            std::string_view("~@#%&*-=+|/").find(key[0])!=std::string_view::npos) return fullwidth();
         if (!config.value("chinese_punctuation",true)) return fullwidth();
         // Decimal numbers and URL/email separators keep ASCII punctuation.
         if ((key == "." || key == "," || key == ":") && !state.history.empty() &&
@@ -436,9 +440,12 @@ struct Engine::Impl {
         if (auto pair=pairs.find(key);pair!=pairs.end()) {state.commitCursorBack=1;return pair->second;}
         static const std::unordered_map<std::string,std::string> map{{",","，"},{".","。"},{"?","？"},{"!","！"},
             {";","；"},{":","："},{"(","（"},{")","）"},{"[","【"},{"]","】"},{"<","《"},{">","》"},
-            {"\\","、"},{"$","￥"},{"^","……"},{"_","——"},{"/","、"},{"|","·"},{"{","『"},{"}","』"}};
+            {"\\","、"},{"$","¥"},{"^","……"},{"_","——"},{"/","、"},{"|","·"},{"{","『"},{"}","』"}};
         auto found = map.find(key);
-        if (found != map.end()) return found->second;
+        if (found != map.end()) {
+            if (key=="$" && config.value("full_width",false) && config.value("full_width_symbols",false)) return "￥";
+            return found->second;
+        }
         if (key == "\"") {
             const auto left = state.history.rfind("“"), right = state.history.rfind("”");
             if (left != std::string::npos && (right == std::string::npos || left > right)) return "”";

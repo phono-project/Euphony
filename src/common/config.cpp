@@ -25,7 +25,7 @@ nlohmann::json default_config() {
         {"prefer_unigram_single_syllable", true}, {"user_words_exact_only", true}, {"user_words_enabled", true}, {"user_words_first", true},
         {"input_mode", "pinyin"}, {"shuangpin_scheme", "xiaohe"},
         {"theme", "system"}, {"background_color", "#FAFBFF"}, {"selected_candidate_color", "#E2EAFF"}, {"dark_background_color", "#282828"}, {"dark_selected_candidate_color", "#183B66"}, {"dark_model_candidate_color", "#204532"}, {"dark_user_candidate_color", "#442D50"}, {"show_preedit", false}, {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"user_candidate_color", "#FBE4EC"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
-        {"learning", true}, {"chinese_punctuation", true}, {"full_width", false}, {"invalid_input", "pass"}, {"context_slots", 4}, {"user_directory", path_string(user_directory())},
+        {"learning", true}, {"chinese_punctuation", true}, {"full_width", false}, {"full_width_digits", false}, {"full_width_symbols", false}, {"invalid_input", "pass"}, {"context_slots", 4}, {"user_directory", path_string(user_directory())},
         {"engine", {{"schema_version", "1.0"}, {"tokenizer", {{"normalization", {{"lowercase_ascii", true},
             {"normalize_v_to_u", true}, {"separators", "'"}}}, {"segment_mode", "safe"}, {"use_segmenter", true},
             {"repair", false}, {"max_pinyin_chars", 128}}}}},
@@ -40,7 +40,7 @@ void validate_config(const nlohmann::json& c) {
         if (value.find('\0') != std::string::npos || value.size() > 32767) throw std::runtime_error("Invalid path");
         if (!value.empty() && !std::filesystem::path(wide(value)).is_absolute()) throw std::runtime_error(std::string(key) + " must be absolute");
     }
-    for (const char* key : {"model_enabled", "use_surrounding", "learning", "chinese_punctuation", "full_width", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "show_preedit"})
+    for (const char* key : {"model_enabled", "use_surrounding", "learning", "chinese_punctuation", "full_width", "full_width_digits", "full_width_symbols", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "show_preedit"})
         if (!c.contains(key) || !c[key].is_boolean()) throw std::runtime_error(std::string(key) + " must be boolean");
     integer(c, "page_size", 3, 10);
     integer(c, "history_characters", 0, 8192);

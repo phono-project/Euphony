@@ -216,6 +216,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     std::uint64_t rendered_seq_ = 0;
     std::uint64_t config_epoch_ = 0;
     bool use_surrounding_ = false;
+    bool full_width_digits_ = false, full_width_symbols_ = false;
     bool full_width_ = false, chinese_punctuation_ = true;
     UINT history_characters_ = 128;
     bool chinese_ = true, active_ = false, focused_ = true, shift_used_ = false;
@@ -515,6 +516,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             if (value.contains("config")) {
                 const auto& config=value["config"];
                 use_surrounding_=config.value("use_surrounding",false);
+                full_width_digits_=config.value("full_width_digits",false); full_width_symbols_=config.value("full_width_symbols",false);
                 full_width_=config.value("full_width",false); chinese_punctuation_=config.value("chinese_punctuation",true);
                 history_characters_=static_cast<UINT>(std::clamp(config.value("history_characters",128),0,8192));
             }
@@ -523,6 +525,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         poll_queued_=false;
         if (value.value("session",std::string{})!=session_) return;
         use_surrounding_=value.value("use_surrounding",use_surrounding_);
+        full_width_digits_=value.value("full_width_digits",full_width_digits_); full_width_symbols_=value.value("full_width_symbols",full_width_symbols_);
         full_width_=value.value("full_width",full_width_); chinese_punctuation_=value.value("chinese_punctuation",chinese_punctuation_);
         history_characters_=static_cast<UINT>(std::clamp(value.value("history_characters",static_cast<int>(history_characters_)),0,8192));
         const auto config_epoch=value.value("config_epoch",config_epoch_);
@@ -857,7 +860,7 @@ public:
         if (!snapshot(context,read)) { cancel(); return S_OK; }
         const auto key=key_name(vk,flags);
         const bool shift=(GetKeyState(VK_SHIFT)&0x8000)!=0,ctrl=(GetKeyState(VK_CONTROL)&0x8000)!=0,alt=(GetKeyState(VK_MENU)&0x8000)!=0;
-        *eaten=consumes(key,active_,shift,ctrl,alt,full_width_,chinese_punctuation_) ||
+        *eaten=consumes(key,active_,shift,ctrl,alt,full_width_,chinese_punctuation_,full_width_digits_,full_width_symbols_) ||
             (!ctrl && !alt && key_seq_>rendered_seq_ && deferred_key(key));
         return S_OK;
     }
@@ -873,7 +876,7 @@ public:
         auto key=key_name(vk,flags);
         bool shift=(GetKeyState(VK_SHIFT)&0x8000)!=0,ctrl=(GetKeyState(VK_CONTROL)&0x8000)!=0,alt=(GetKeyState(VK_MENU)&0x8000)!=0;
         const bool barrier=!ctrl && !alt && key_seq_>rendered_seq_ && deferred_key(key);
-        if (!consumes(key,active_,shift,ctrl,alt,full_width_,chinese_punctuation_) && !barrier) { if (ctrl || alt) cancel(); return S_OK; }
+        if (!consumes(key,active_,shift,ctrl,alt,full_width_,chinese_punctuation_,full_width_digits_,full_width_symbols_) && !barrier) { if (ctrl || alt) cancel(); return S_OK; }
         value["key"]=key; value["shift"]=shift; value["ctrl"]=ctrl; value["alt"]=alt;
         const bool candidate_action=key=="Space" || (!shift && key.size()==1 && key[0]>='0' && key[0]<='9') ||
             key=="Tab" || key=="PageUp" || key=="PageDown" || key=="Up" || key=="Down" ||

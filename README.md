@@ -185,4 +185,6 @@ This project uses [Apache License 2.0](LICENSE). Third-party material retains th
 
 字典回退对不超过 6 个字符的输入保留多种读法，并降低简拼和过度拆分路径的排序。更长输入通过动态规划优先选择完整音节较少的路径，末尾允许未完成音节；手动输入的分隔符会被保留。无法找到全拼路径时仍支持原有简拼回退。该策略参考 [libime 的拼音解析实现](https://github.com/fcitx/libime/blob/master/src/libime/pinyin/pinyinencoder.cpp)，不新增运行依赖。
 
-中文标点模式支持 `\` / `/` → `、`、`|` → `·`、`$` → `￥`、`^` → `……`、`_` → `——`、`{` / `}` → `『』`。常用映射参考 [Rime 标点配置](https://github.com/rime/rime-prelude/blob/master/punctuation.yaml)，保留现有括号配对与数字标点处理。关闭中文标点后仍可直接输入 ASCII 符号。
+中文标点模式支持 `\` / `/` → `、`、`|` → `·`、`$` → `¥`（开启全角功能符号时为 `￥`）、`^` → `……`、`_` → `——`、`{` / `}` → `『』`。常用映射参考 [Rime 标点配置](https://github.com/rime/rime-prelude/blob/master/punctuation.yaml)，保留现有括号配对与数字标点处理。关闭中文标点后仍可直接输入 ASCII 符号。
+
+全角模式可分别配置“全角数字”和“全角功能符号”，默认均关闭。关闭时数字与 `~ @ # ¥ % & * - = + | /` 的输入结果与半角模式一致；开启时相应字符转换为全角。中文标点设置仍独立生效。

@@ -127,12 +127,12 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                 if (!eaten) throw std::runtime_error("Ctrl comma was not accepted");
                 pump_until([&] { return broker.call({{"version",1},{"op","get_config"}}).at("config").at("full_width")==!originalWidth; },5000,"Ctrl comma did not update width setting");
                 pump_until([&] {
-                    check(keys->OnTestKeyDown(context.Get(),'1',0,&eaten),"Width key ownership failed");
+                    check(keys->OnTestKeyDown(context.Get(),VK_SPACE,0,&eaten),"Width key ownership failed");
                     return bool(eaten)==!originalWidth;
                 },5000,"Frontend width mode did not follow shortcut");
                 if (!originalWidth) {
-                    check(keys->OnKeyDown(context.Get(),'1',0,&eaten),"Full-width digit input failed");
-                    pump_until([&] { return store->text==L"１"; },5000,"Shortcut did not produce a full-width digit");
+                    check(keys->OnKeyDown(context.Get(),VK_SPACE,0,&eaten),"Full-width space input failed");
+                    pump_until([&] { return store->text==L"　"; },5000,"Shortcut did not produce a full-width space");
                     store->clear();
                 }
                 check(keys->OnPreservedKey(context.Get(),euphony::tsf::kWidthToggle,&eaten),"Ctrl comma reverse toggle failed");

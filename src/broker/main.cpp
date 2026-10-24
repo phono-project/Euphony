@@ -113,6 +113,8 @@ json dispatch(const json& request, std::vector<std::shared_ptr<euphony::Engine>>
     response["use_surrounding"] = route->second.preferences.at("use_surrounding");
     response["history_characters"] = route->second.preferences.at("history_characters");
     response["full_width"] = route->second.preferences.at("full_width");
+    response["full_width_digits"] = route->second.preferences.at("full_width_digits");
+    response["full_width_symbols"] = route->second.preferences.at("full_width_symbols");
     response["chinese_punctuation"] = route->second.preferences.at("chinese_punctuation");
     if (op == "reset" || op == "close" || (response.value("preedit", "").empty() && route->second.engine != engine)) {
         if (op != "close") selected->handle({{"version", 1}, {"op", "close"}, {"session", session},
