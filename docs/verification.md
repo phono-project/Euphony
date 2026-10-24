@@ -65,9 +65,9 @@ CTest runs x64 `common`, `engine`, `tsf_policy`, `tsf_smoke` and both x86 TSF te
 
 ## SDK 与缓存 / SDK and caches
 
-`dependencies.json` 固定 `phono-project/phono-core` 的 Windows x64 Release SDK，当前资产为 `phono-core-sdk-0.1.1-windows-x64.zip`。`tools/download_core.py` 下载到 `.deps/phono-core-0.1.1-windows-x64`，并检查包内版本与固定版本一致。构建使用 SDK 的 C ABI 头文件、DLL 与许可证，不拉取 core 源码。第一次完整构建前，固定 core Release 必须已发布资产。
+`dependencies.json` 固定 `phono-project/phono-core` 的 Windows x64 Release SDK，当前资产为 `phono-core-sdk-0.1.2-windows-x64.zip`。`tools/download_core.py` 下载到 `.deps/phono-core-0.1.2-windows-x64`，并检查包内版本与固定版本一致。构建使用 SDK 的 C ABI 头文件、DLL 与许可证，不拉取 core 源码。第一次完整构建前，固定 core Release 必须已发布资产。
 
-`dependencies.json` pins the Windows x64 Release SDK from `phono-project/phono-core`, currently `phono-core-sdk-0.1.1-windows-x64.zip`. `tools/download_core.py` downloads to `.deps/phono-core-0.1.1-windows-x64` and checks that the installed version matches the pinned version. Builds use the SDK’s C ABI header, DLL, and licenses without fetching core sources. The pinned core Release must publish the asset before a first complete build.
+`dependencies.json` pins the Windows x64 Release SDK from `phono-project/phono-core`, currently `phono-core-sdk-0.1.2-windows-x64.zip`. `tools/download_core.py` downloads to `.deps/phono-core-0.1.2-windows-x64` and checks that the installed version matches the pinned version. Builds use the SDK’s C ABI header, DLL, and licenses without fetching core sources. The pinned core Release must publish the asset before a first complete build.
 
 WebView2 SDK、词库来源和 KenLM 构建依赖使用固定版本。CI 只缓存 `.deps/vcpkg-installed`、`.deps/webview2`、core SDK 目录和 `data/zh_CN.lm`，不保存 vcpkg 构建树、下载目录或解压后的 ARPA 中间文件。已有语言模型可直接复用，无需下载源归档；`setup` 仍可从无缓存状态准备完整依赖。显式 SDK 覆盖可通过 `PHONO_CORE_SDK_DIR` 或构建入口的 `--core-sdk` 参数传入。
 
