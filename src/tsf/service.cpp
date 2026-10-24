@@ -204,6 +204,8 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     DWORD edit_cookie_ = TF_INVALID_COOKIE, layout_cookie_ = TF_INVALID_COOKIE;
     DWORD activation_{};
     HWND dispatch_{}, popup_{}, mode_popup_{};
+    nlohmann::json appearance_;
+    COLORREF background_color_=RGB(250,251,255), selected_color_=RGB(226,234,255), text_color_=RGB(30,34,56);
     bool show_preedit_ = false;
     COLORREF model_color_ = RGB(223,242,229);
     COLORREF user_color_ = RGB(251,228,236);
@@ -480,6 +482,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         }
         preedit_=preedit; candidates_.clear();
         show_preedit_=value.value("show_preedit",false);
+        appearance_=value;
         const auto list_generation=value.value("candidate_generation",value.value("generation",std::uint64_t{}));
         if (candidate_generation_!=list_generation) host_pages_.clear();
         candidate_generation_=list_generation;
@@ -598,13 +601,30 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         }
         if (pending_) SetTimer(dispatch_,kPollTimer,35,nullptr); else KillTimer(dispatch_,kPollTimer);
     }
+    void resolve_colors() {
+        DWORD light=1, bytes=sizeof(light);
+        RegGetValueW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",L"AppsUseLightTheme",RRF_RT_REG_DWORD,nullptr,&light,&bytes);
+        const auto theme=appearance_.value("theme",std::string{"system"});
+        const bool dark=theme=="dark" || (theme=="system" && !light);
+        auto color=[&](const char* key,const char* fallback) {
+            const auto value=appearance_.value(std::string(dark?"dark_":"")+key,std::string(fallback));
+            const auto rgb=std::stoul(value.substr(1),nullptr,16);
+            return RGB((rgb>>16)&255,(rgb>>8)&255,rgb&255);
+        };
+        background_color_=color("background_color",dark?"#282828":"#FAFBFF");
+        selected_color_=color("selected_candidate_color",dark?"#183B66":"#E2EAFF");
+        model_color_=color("model_candidate_color",dark?"#204532":"#DFF2E5");
+        user_color_=color("user_candidate_color",dark?"#442D50":"#FBE4EC");
+        text_color_=dark?RGB(240,240,240):RGB(30,34,56);
+    }
     void paint() {
+        resolve_colors();
         PAINTSTRUCT paint{}; HDC target=BeginPaint(popup_,&paint); RECT bounds{}; GetClientRect(popup_,&bounds);
         HDC dc=CreateCompatibleDC(target); HBITMAP buffer=CreateCompatibleBitmap(target,std::max(1L,bounds.right),std::max(1L,bounds.bottom));
         if (!dc || !buffer) { if (dc) DeleteDC(dc); if (buffer) DeleteObject(buffer); EndPaint(popup_,&paint); return; }
         auto oldbitmap=SelectObject(dc,buffer);
-        auto background=CreateSolidBrush(RGB(250,251,255)); FillRect(dc,&bounds,background); DeleteObject(background);
-        auto oldfont=SelectObject(dc,font_); SetBkMode(dc,TRANSPARENT); SetTextColor(dc,RGB(45,49,70));
+        auto background=CreateSolidBrush(background_color_); FillRect(dc,&bounds,background); DeleteObject(background);
+        auto oldfont=SelectObject(dc,font_); SetBkMode(dc,TRANSPARENT); SetTextColor(dc,text_color_);
         const auto header=preedit_+(pending_?L"  …":L"");
         if (show_preedit_) TextOutW(dc,pad_,pad_/2,header.data(),static_cast<int>(header.size()));
         auto begin=std::min<std::size_t>(page_*page_size_,candidates_.size());
@@ -615,14 +635,14 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             IntersectClipRect(dc,cell.left,cell.top,cell.right,cell.bottom);
             auto y=static_cast<int>(cell.top);
             if (candidates_[i].user || candidates_[i].model || i==selection_) {
-                auto brush=CreateSolidBrush(candidates_[i].user?user_color_:(candidates_[i].model?model_color_:RGB(226,234,255))); FillRect(dc,&cell,brush); DeleteObject(brush);
+                auto brush=CreateSolidBrush(i==selection_?selected_color_:(candidates_[i].user?user_color_:model_color_)); FillRect(dc,&cell,brush); DeleteObject(brush);
             }
             if (i==selection_) { auto brush=CreateSolidBrush(RGB(96,126,185)); FrameRect(dc,&cell,brush); DeleteObject(brush); }
             auto label=std::to_wstring((i-begin+1)%10)+L"  ";
-            int x=cell.left+pad_/2; SetTextColor(dc,RGB(45,49,70)); TextOutW(dc,x,y,label.data(),static_cast<int>(label.size())); SIZE size{}; GetTextExtentPoint32W(dc,label.data(),static_cast<int>(label.size()),&size); x+=size.cx;
+            int x=cell.left+pad_/2; SetTextColor(dc,text_color_); TextOutW(dc,x,y,label.data(),static_cast<int>(label.size())); SIZE size{}; GetTextExtentPoint32W(dc,label.data(),static_cast<int>(label.size()),&size); x+=size.cx;
             IntersectClipRect(dc,cell.left,cell.top,cell.right-pad_/2,cell.bottom);
             auto draw=[&](std::wstring_view text,bool deleted) {
-                SetTextColor(dc,deleted?RGB(155,158,170):RGB(30,34,56)); TextOutW(dc,x,y,text.data(),static_cast<int>(text.size()));
+                SetTextColor(dc,deleted?RGB(155,158,170):text_color_); TextOutW(dc,x,y,text.data(),static_cast<int>(text.size()));
                 GetTextExtentPoint32W(dc,text.data(),static_cast<int>(text.size()),&size);
                 if (deleted) { auto pen=CreatePen(PS_SOLID,1,RGB(155,158,170)); auto oldpen=SelectObject(dc,pen); MoveToEx(dc,x,y+row_/3,nullptr); LineTo(dc,x+size.cx,y+row_/3); SelectObject(dc,oldpen); DeleteObject(pen); }
                 x+=size.cx;

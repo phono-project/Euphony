@@ -151,13 +151,19 @@
               <div class="row-label"><label for="candidate-layout">候选排列</label><p>横向并排显示，纵向每行显示一个候选。</p></div>
               <select id="candidate-layout" data-key="candidate_layout"><option value="vertical">纵向</option><option value="horizontal">横向</option></select>
             </div>
+<div class="row"><div class="row-label"><label for="theme">颜色模式</label><p>亮色与暗色配色独立保存。</p></div><select id="theme" data-key="theme"><option value="system">遵循系统</option><option value="light">亮色</option><option value="dark">暗色</option></select></div><div class="row"><div class="row-label"><label for="background_color">亮色背景颜色</label></div><input id="background_color" data-key="background_color" type="color" value="#FAFBFF"></div>
+<div class="row"><div class="row-label"><label for="selected_candidate_color">亮色选定词颜色</label></div><input id="selected_candidate_color" data-key="selected_candidate_color" type="color" value="#E2EAFF"></div>
+<div class="row"><div class="row-label"><label for="dark_background_color">暗色背景颜色</label></div><input id="dark_background_color" data-key="dark_background_color" type="color" value="#282828"></div>
+<div class="row"><div class="row-label"><label for="dark_selected_candidate_color">暗色选定词颜色</label></div><input id="dark_selected_candidate_color" data-key="dark_selected_candidate_color" type="color" value="#183B66"></div>
+<div class="row"><div class="row-label"><label for="dark_model_candidate_color">暗色模型词颜色</label></div><input id="dark_model_candidate_color" data-key="dark_model_candidate_color" type="color" value="#204532"></div>
+<div class="row"><div class="row-label"><label for="dark_user_candidate_color">暗色用户词颜色</label></div><input id="dark_user_candidate_color" data-key="dark_user_candidate_color" type="color" value="#442D50"></div>
             <div class="row"><div class="row-label"><label for="show-preedit">显示预编辑框</label><p>在候选窗上方显示正在输入的拼音。</p></div><label class="toggle"><input id="show-preedit" data-key="show_preedit" type="checkbox"><span></span></label></div>
             <div class="row">
-              <div class="row-label"><label for="model-candidate-color">模型候选颜色</label><p>模型候选使用此背景色，默认淡绿色。</p></div>
+              <div class="row-label"><label for="model-candidate-color">亮色模型候选颜色</label><p>模型候选使用此背景色，默认淡绿色。</p></div>
               <input id="model-candidate-color" data-key="model_candidate_color" type="color" value="#dff2e5" aria-label="模型候选颜色">
             </div>
             <div class="row">
-              <div class="row-label"><label for="user-candidate-color">记忆词组颜色</label><p>默认使用淡粉红色背景。高亮该候选后按 Delete 可忘记它。</p></div>
+              <div class="row-label"><label for="user-candidate-color">亮色记忆词组颜色</label><p>默认使用淡粉红色背景。高亮该候选后按 Delete 可忘记它。</p></div>
               <input id="user-candidate-color" data-key="user_candidate_color" type="color" value="#fbe4ec" aria-label="记忆词组颜色">
             </div>
             <div class="row">
@@ -289,7 +295,7 @@
     let serial = 0, saved = null, busy = false, dirty = false;
     const defaults = {
       model_directory:'', core_library:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
-      show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
+      theme:'system', background_color:'#FAFBFF', selected_candidate_color:'#E2EAFF', dark_background_color:'#282828', dark_selected_candidate_color:'#183B66', dark_model_candidate_color:'#204532', dark_user_candidate_color:'#442D50', show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
       prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true,
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
       full_width:false, chinese_punctuation:true,
