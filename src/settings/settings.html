@@ -529,11 +529,26 @@
     document.addEventListener('keydown', event => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); }
     });
-    document.querySelectorAll('nav a').forEach(link => link.addEventListener('click', event => {
+    const navigation = [...document.querySelectorAll('nav a')];
+    const sections = navigation.map(link => document.querySelector(link.getAttribute('href')));
+    function updateNavigation() {
+      let current = 0;
+      sections.forEach((section, index) => { if (section.getBoundingClientRect().top <= 24) current = index; });
+      if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2)
+        current = sections.length - 1;
+      navigation.forEach((link, index) => {
+        link.classList.toggle('active', index === current);
+        if (index === current) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+    }
+    window.addEventListener('scroll', updateNavigation, {passive:true});
+    window.addEventListener('resize', updateNavigation);
+    updateNavigation();
+    navigation.forEach(link => link.addEventListener('click', event => {
       event.preventDefault();
       const target = document.querySelector(link.getAttribute('href'));
       target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start'});
-      document.querySelectorAll('nav a').forEach(item => item.classList.toggle('active', item === link));
     }));
     if (native) native.addEventListener('message', event => {
       const message = event.data;

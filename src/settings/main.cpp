@@ -584,10 +584,25 @@ private:
             const validation = pageSize.classList.contains('field-error') &&
                 document.getElementById('error').classList.contains('visible');
             document.getElementById('revert').click();
+            const sidebarTop = document.querySelector('aside').getBoundingClientRect().top;
+            const scrollToSection = id => {
+                window.scrollTo({top:document.getElementById(id).getBoundingClientRect().top + scrollY - 20,behavior:'instant'});
+                window.dispatchEvent(new Event('scroll'));
+                return document.querySelector('nav a.active').getAttribute('href') === '#' + id &&
+                    document.querySelectorAll('nav a[aria-current="location"]').length === 1;
+            };
+            const scrollForward = scrollToSection('resources') && scrollToSection('privacy');
+            window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'});
+            window.dispatchEvent(new Event('scroll'));
+            const scrollBottom = document.querySelector('nav a.active').getAttribute('href') === '#advanced';
+            const scrollBackward = scrollToSection('resources');
+            const sidebarSticky = Math.abs(document.querySelector('aside').getBoundingClientRect().top - sidebarTop) < 1;
             window.scrollTo({top:0,left:0,behavior:'instant'});
+            window.dispatchEvent(new Event('scroll'));
+            const scrollTop = document.querySelector('nav a.active').getAttribute('href') === '#input';
             const viewport = {width:innerWidth,height:innerHeight};
             const footer = document.querySelector('footer').getBoundingClientRect();
-            return {ready:true,missing,dark_theme:darkTheme,light_theme:lightTheme,system_theme:systemTheme,theme_reverted:themeReverted,control_count:document.querySelectorAll('[data-key]').length,
+            return {ready:true,missing,scroll_forward:scrollForward,scroll_backward:scrollBackward,scroll_bottom:scrollBottom,scroll_top:scrollTop,sidebar_sticky:sidebarSticky,dark_theme:darkTheme,light_theme:lightTheme,system_theme:systemTheme,theme_reverted:themeReverted,control_count:document.querySelectorAll('[data-key]').length,
                 schemes:document.getElementById('shuangpin-scheme').options.length,
                 dirty_state:dirtyState,scheme_toggle:schemeToggle,validation,
                 layout_dirty_state:layoutDirtyState,candidate_layout:layout.value,
@@ -629,7 +644,9 @@ private:
                             return S_OK;
                         }
                         bool valid = test_dom_.at("missing").empty() &&
-                            test_dom_.value("dark_theme", false) && test_dom_.value("light_theme", false) &&
+                            test_dom_.value("scroll_forward", false) && test_dom_.value("scroll_backward", false) &&
+                            test_dom_.value("scroll_bottom", false) && test_dom_.value("scroll_top", false) &&
+                            test_dom_.value("sidebar_sticky", false) && test_dom_.value("dark_theme", false) && test_dom_.value("light_theme", false) &&
                             test_dom_.value("system_theme", false) && test_dom_.value("theme_reverted", false) &&
                             test_dom_.value("schemes", 0) == 7 && test_dom_.value("dirty_state", false) &&
                             test_dom_.value("unigram_dirty_state", false) && test_dom_.value("language_model_dirty_state", false) &&
