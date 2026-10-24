@@ -510,8 +510,8 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     }
     void receive(Json value) {
         if (value.value("_op",std::string{})=="set_mode") return;
-        if (value.value("_op",std::string{})=="get_config") {
-            config_queued_=false;
+        if (value.value("_op",std::string{})=="get_config" || value.value("_op",std::string{})=="set_config") {
+            if (value.value("_op",std::string{})=="get_config") config_queued_=false;
             if (value.contains("config")) {
                 const auto& config=value["config"];
                 use_surrounding_=config.value("use_surrounding",false);
@@ -802,6 +802,8 @@ public:
         if (keys) keys->PreserveKey(client_,kToggle,&toggle,L"Euphony 中 / EN",15);
         TF_PRESERVEDKEY controlSpace{VK_SPACE,TF_MOD_CONTROL};
         if (keys) keys->PreserveKey(client_,kControlSpace,&controlSpace,L"Euphony 中 / EN",15);
+        TF_PRESERVEDKEY widthToggle{VK_OEM_COMMA,TF_MOD_CONTROL};
+        if (keys) keys->PreserveKey(client_,kWidthToggle,&widthToggle,L"Euphony 全 / 半角",14);
         mgr_.As(&ui_); mgr_.As(&langbar_);
         ComPtr<ITfCategoryMgr> categories;
         if (SUCCEEDED(CoCreateInstance(CLSID_TF_CategoryMgr,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&categories)))) categories->RegisterGUID(kPreeditAttribute,&attribute_);
@@ -816,7 +818,7 @@ public:
         if (worker_) { std::lock_guard lock(worker_->mutex); worker_->stop=true; worker_->window=nullptr; worker_->requests.clear(); worker_->wake.notify_one(); }
         worker_.reset();
         ComPtr<ITfKeystrokeMgr> keys;
-        if (SUCCEEDED(mgr_.As(&keys))) { TF_PRESERVEDKEY toggle{VK_SHIFT,TF_MOD_ON_KEYUP}; keys->UnpreserveKey(kToggle,&toggle); TF_PRESERVEDKEY controlSpace{VK_SPACE,TF_MOD_CONTROL}; keys->UnpreserveKey(kControlSpace,&controlSpace); keys->UnadviseKeyEventSink(client_); }
+        if (SUCCEEDED(mgr_.As(&keys))) { TF_PRESERVEDKEY toggle{VK_SHIFT,TF_MOD_ON_KEYUP}; keys->UnpreserveKey(kToggle,&toggle); TF_PRESERVEDKEY controlSpace{VK_SPACE,TF_MOD_CONTROL}; keys->UnpreserveKey(kControlSpace,&controlSpace); TF_PRESERVEDKEY widthToggle{VK_OEM_COMMA,TF_MOD_CONTROL}; keys->UnpreserveKey(kWidthToggle,&widthToggle); keys->UnadviseKeyEventSink(client_); }
         ComPtr<ITfSource> source;
         if (SUCCEEDED(mgr_.As(&source))) {
             if (events_cookie_!=TF_INVALID_COOKIE) source->UnadviseSink(events_cookie_);
@@ -894,7 +896,16 @@ public:
     }
     HRESULT STDMETHODCALLTYPE OnTestKeyUp(ITfContext*,WPARAM,LPARAM,BOOL* eaten) override { if (!eaten) return E_POINTER; *eaten=FALSE; return S_OK; }
     HRESULT STDMETHODCALLTYPE OnKeyUp(ITfContext*,WPARAM,LPARAM,BOOL* eaten) override { if (!eaten) return E_POINTER; *eaten=FALSE; return S_OK; }
-    HRESULT STDMETHODCALLTYPE OnPreservedKey(ITfContext*,REFGUID id,BOOL* eaten) override { if (!eaten) return E_POINTER; *eaten=(id==kToggle&&!shift_used_) || id==kControlSpace; if (*eaten) toggle(); return S_OK; }
+    HRESULT STDMETHODCALLTYPE OnPreservedKey(ITfContext*,REFGUID id,BOOL* eaten) override {
+        if (!eaten) return E_POINTER;
+        if (id==kWidthToggle) {
+            *eaten=enqueue({{"version",1},{"op","set_config"},{"config",{{"full_width",!full_width_}}}});
+            if (*eaten) full_width_=!full_width_;
+            return S_OK;
+        }
+        *eaten=(id==kToggle&&!shift_used_) || id==kControlSpace;
+        if (*eaten) toggle(); return S_OK;
+    }
     HRESULT STDMETHODCALLTYPE OnCompositionTerminated(TfEditCookie,ITfComposition* composition) override {
         if (composition_.Get()==composition) { composition_.Reset(); hide(); rotate(); preedit_.clear(); } return S_OK;
     }
