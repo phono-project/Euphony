@@ -522,6 +522,7 @@ private:
         if (!webview_ || !test_navigation_ || test_config_.is_null() || test_evaluating_) return;
         test_evaluating_ = true;
         // This evaluates the application's own page; it does not send set_config.
+        // Keep each wide raw-string literal below MSVC's per-literal size limit.
         constexpr wchar_t script[] = LR"JS((() => {
             const fields = document.getElementById('fields');
             if (!fields || fields.disabled) return {ready:false};
@@ -574,7 +575,8 @@ private:
                 toggle.dispatchEvent(new Event('change', {bubbles:true}));
                 userWordsDirtyState = userWordsDirtyState && !document.getElementById('save').disabled;
                 document.getElementById('revert').click();
-            }
+            })JS"
+        LR"JS(
             const languageModel = document.getElementById('language-model-path');
             const originalLanguageModel = languageModel.value;
             languageModel.value = originalLanguageModel + '.self-test';
