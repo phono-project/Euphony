@@ -180,8 +180,8 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                 if (!popup) throw std::runtime_error("Candidate popup missing");
                 popup_original=reinterpret_cast<WNDPROC>(SetWindowLongPtrW(popup,GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(observe_popup)));
                 try {
-                    for (const auto* layout : {"vertical","horizontal"}) {
-                        broker.call({{"version",1},{"op","set_config"},{"config",{{"candidate_layout",layout},{"page_size",5},{"user_candidate_color","#FBE4EC"}}}});
+                    for (const auto* theme : {"light","dark"}) for (const auto* layout : {"vertical","horizontal"}) {
+                        broker.call({{"version",1},{"op","set_config"},{"config",{{"theme",theme},{"show_preedit",true},{"candidate_layout",layout},{"page_size",5},{"user_candidate_color","#FBE4EC"}}}});
                         store->layout_state=1;
                         check(keys->OnKeyDown(context.Get(),'N',0,&eaten),"Popup composition start failed");
                         check(keys->OnKeyDown(context.Get(),'I',0,&eaten),"Popup composition key failed");
@@ -218,14 +218,14 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                         // Locate the first highlighted cell in the actual rendered
                         // image, then click its neighbor in the chosen direction.
                         HDC pixels=GetDC(popup); RECT client_rect{}; GetClientRect(popup,&client_rect);
-                        const auto pink=RGB(251,228,236);
+                        const auto selected_color=std::string_view(theme)=="dark"?RGB(24,59,102):RGB(226,234,255);
                         int first_y=0;
-                        while (first_y<client_rect.bottom && GetPixel(pixels,5,first_y)!=pink) ++first_y;
+                        while (first_y<client_rect.bottom && GetPixel(pixels,5,first_y)!=selected_color) ++first_y;
                         int next_x=5,next_y=first_y;
-                        while (next_x<client_rect.right && GetPixel(pixels,next_x,first_y+1)==pink) ++next_x;
-                        while (next_y<client_rect.bottom && GetPixel(pixels,5,next_y)==pink) ++next_y;
+                        while (next_x<client_rect.right && GetPixel(pixels,next_x,first_y+1)==selected_color) ++next_x;
+                        while (next_y<client_rect.bottom && GetPixel(pixels,5,next_y)==selected_color) ++next_y;
                         ReleaseDC(popup,pixels);
-                        if (first_y>=client_rect.bottom) throw std::runtime_error("Remembered candidate pink background missing");
+                        if (first_y>=client_rect.bottom) throw std::runtime_error("Selected candidate theme background missing");
                         BSTR chosen{}; check(candidates->GetString(1,&chosen),"Mouse target unavailable");
                         std::wstring expected_click(chosen,SysStringLen(chosen)); SysFreeString(chosen);
                         const auto x=std::string_view(layout)=="horizontal"?next_x+8:14;
