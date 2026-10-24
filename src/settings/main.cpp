@@ -527,6 +527,19 @@ private:
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
                 'slack-interval','min-accept-context','trial-ratio','decay-alpha','decay-lambda'];
             const missing = ids.filter(id => !document.getElementById(id));
+            const theme = document.getElementById('theme');
+            theme.value = 'dark'; theme.dispatchEvent(new Event('change', {bubbles:true}));
+            const darkTheme = document.documentElement.dataset.theme === 'dark' &&
+                getComputedStyle(document.body).backgroundColor === 'rgb(33, 28, 40)' &&
+                getComputedStyle(document.querySelector('section')).backgroundColor === 'rgb(44, 37, 53)';
+            theme.value = 'light'; theme.dispatchEvent(new Event('change', {bubbles:true}));
+            const lightTheme = document.documentElement.dataset.theme === 'light' &&
+                getComputedStyle(document.body).backgroundColor === 'rgb(247, 248, 245)';
+            theme.value = 'system'; theme.dispatchEvent(new Event('change', {bubbles:true}));
+            const systemTheme = document.documentElement.dataset.theme ===
+                (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.getElementById('revert').click();
+            const themeReverted = document.documentElement.dataset.theme === (theme.value === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme.value);
             const mode = document.getElementById('input-mode');
             const originalMode = mode.value;
             mode.value = originalMode === 'pinyin' ? 'shuangpin' : 'pinyin';
@@ -574,7 +587,7 @@ private:
             window.scrollTo({top:0,left:0,behavior:'instant'});
             const viewport = {width:innerWidth,height:innerHeight};
             const footer = document.querySelector('footer').getBoundingClientRect();
-            return {ready:true,missing,control_count:document.querySelectorAll('[data-key]').length,
+            return {ready:true,missing,dark_theme:darkTheme,light_theme:lightTheme,system_theme:systemTheme,theme_reverted:themeReverted,control_count:document.querySelectorAll('[data-key]').length,
                 schemes:document.getElementById('shuangpin-scheme').options.length,
                 dirty_state:dirtyState,scheme_toggle:schemeToggle,validation,
                 layout_dirty_state:layoutDirtyState,candidate_layout:layout.value,
@@ -616,6 +629,8 @@ private:
                             return S_OK;
                         }
                         bool valid = test_dom_.at("missing").empty() &&
+                            test_dom_.value("dark_theme", false) && test_dom_.value("light_theme", false) &&
+                            test_dom_.value("system_theme", false) && test_dom_.value("theme_reverted", false) &&
                             test_dom_.value("schemes", 0) == 7 && test_dom_.value("dirty_state", false) &&
                             test_dom_.value("unigram_dirty_state", false) && test_dom_.value("language_model_dirty_state", false) &&
                             test_dom_.value("user_words_dirty_state", false) &&
