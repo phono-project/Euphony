@@ -432,11 +432,11 @@ struct Engine::Impl {
         // Decimal numbers and URL/email separators keep ASCII punctuation.
         if ((key == "." || key == "," || key == ":") && !state.history.empty() &&
             state.history.back() >= '0' && state.history.back() <= '9') return fullwidth();
-        static const std::unordered_map<std::string,std::string> pairs{{"(","（）"},{"[","【】"},{"<","《》"}};
+        static const std::unordered_map<std::string,std::string> pairs{{"(","（）"},{"[","【】"},{"<","《》"},{"{","『』"}};
         if (auto pair=pairs.find(key);pair!=pairs.end()) {state.commitCursorBack=1;return pair->second;}
         static const std::unordered_map<std::string,std::string> map{{",","，"},{".","。"},{"?","？"},{"!","！"},
             {";","；"},{":","："},{"(","（"},{")","）"},{"[","【"},{"]","】"},{"<","《"},{">","》"},
-            {"\\","、"},{"$","￥"},{"^","……"},{"_","——"}};
+            {"\\","、"},{"$","￥"},{"^","……"},{"_","——"},{"/","、"},{"|","·"},{"{","『"},{"}","』"}};
         auto found = map.find(key);
         if (found != map.end()) return found->second;
         if (key == "\"") {

@@ -6,6 +6,11 @@ void require(bool value, const char* message) { if (!value) throw std::runtime_e
 int main() {
     using namespace euphony::tsf;
     try {
+        for (const auto* key : {"\\", "/", "|", "$", "^", "_", "{", "}"}) {
+            require(consumes(key,false,false,false,false),"Chinese punctuation must reach the broker while idle");
+            require(!consumes(key,false,false,false,false,false,false),"ASCII punctuation mode must pass through");
+            require(!consumes(key,false,false,true,false),"Punctuation shortcuts must pass through");
+        }
         require(consumes("a",false,false,false,false),"Pinyin starts without a broker round trip");
         require(!consumes("a",false,false,true,false),"Application shortcuts must pass through");
         require(consumes("Tab",true,true,false,false),"Reverse candidate paging preserves Shift");

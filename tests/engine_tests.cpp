@@ -98,6 +98,9 @@ int main() {
             auto finalized=a.request("key","Select",{{"index",1},{"candidate_generation",listIdentity}});
             check(finalized["commit"]=="尼","UIless Highlight then Select can use one candidate identity");
             check(a.request("key",",")["commit"]=="，","Chinese punctuation");
+            for (const auto& [key, expected] : std::vector<std::pair<std::string,std::string>>{
+                {"\\","、"},{"/","、"},{"|","·"},{"$","￥"},{"^","……"},{"_","——"},{"{","『』"},{"}","』"}})
+                check(a.request("key",key)["commit"]==expected,"Chinese punctuation mapping");
             auto pair=a.request("key","(");
             check(pair["commit"]=="（）" && pair["commit_cursor_back"]==1,"paired punctuation positions caret");
             check(a.request("key",".",{{"context_valid",true},{"surrounding","12"}})["eaten"]==false,"decimal keeps ASCII");
@@ -110,6 +113,13 @@ int main() {
         auto learning=json::parse(learningStream);
         learningStream.close();
         check(learning["selections"]["ni\t你"].get<int>()==1,"sensitive or undone partial selection does not learn");
+        {
+            auto punctuationConfig=config; punctuationConfig["learning"]=false;
+            punctuationConfig["user_directory"]=(temp/"punctuation").string();
+            Engine punctuation(punctuationConfig); Client client{punctuation,"punctuation"};
+            client.type("ni");
+            check(client.request("key","\\")["commit"]=="你、","Backslash confirms composition and inserts enumeration comma");
+        }
         {
             Dictionary persisted(fixture);
             persisted.loadLearning(temp/"learning.json");

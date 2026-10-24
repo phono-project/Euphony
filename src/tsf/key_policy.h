@@ -17,7 +17,7 @@ inline bool consumes(std::string_view key, bool active, bool shift, bool ctrl, b
     if (key == "Tab") return active;
     if (shift && key.size() != 1) return false;
     if (key.size() == 1 && key[0] >= 'a' && key[0] <= 'z' && !shift) return true;
-    if (!active) return chinese_punctuation && key.size() == 1 && std::string_view(",.!?:;\"'()[]<>-+/").find(key[0]) != std::string_view::npos;
+    if (!active) return chinese_punctuation && key.size() == 1 && std::string_view(",.!?:;\"'()[]<>-+/\\$^_|{}").find(key[0]) != std::string_view::npos;
     return key.size() == 1 || key == "Backspace" || key == "Delete" || key == "Left" || key == "Right" ||
         key == "Home" || key == "End" || key == "Up" || key == "Down" || key == "Space" ||
         key == "Enter" || key == "Escape" || key == "PageUp" || key == "PageDown";

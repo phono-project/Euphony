@@ -94,6 +94,11 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
             pump_until([&] { return store->text==committed; },5000,"Escape did not remove only uncommitted preedit");
             store->clear();
             if (cycle==0) {
+                check(keys->OnTestKeyDown(context.Get(),VK_OEM_5,0,&eaten),"Backslash ownership failed");
+                if (!eaten) throw std::runtime_error("Idle backslash did not reach Chinese punctuation");
+                check(keys->OnKeyDown(context.Get(),VK_OEM_5,0,&eaten),"Backslash input failed");
+                pump_until([&] { return store->text==L"、"; },5000,"Backslash did not insert enumeration comma");
+                store->clear();
                 check(keys->OnKeyDown(context.Get(),VK_SHIFT,0,&eaten),"Shift press failed");
                 check(keys->OnPreservedKey(context.Get(),euphony::tsf::kToggle,&eaten),"English toggle failed");
                 if (!eaten) throw std::runtime_error("Mode toggle was not accepted");
