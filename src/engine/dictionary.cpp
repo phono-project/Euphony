@@ -137,7 +137,7 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
             }
         }
         results.push_back({entry.text, entry.pinyin, sourceEnd[consumed - 1],
-            score - (abbreviated ? 0.2 : 0.0) - (completing ? 5.0 : 0.0), complete, completing || abbreviated});
+            score - (abbreviated ? 8.0 : 0.0) - (completing ? 5.0 : 0.0) - 4.0 * splitPinyin(entry.pinyin).size(), complete, completing || abbreviated});
     };
     auto visit = [&](const std::vector<Node>& trie, bool abbreviated) {
         uint32_t node = 0;
@@ -188,18 +188,61 @@ std::vector<DictionaryCandidate> Dictionary::matches(std::string_view raw, bool 
 std::vector<DictionaryCandidate> Dictionary::lookup(std::string_view raw, size_t limit,
     std::string_view history, bool unigramOnly) const {
     auto context = languageModel_ ? languageModel_->contextState(history) : LanguageModel::State{};
-    auto result = matches(raw, true, limit, languageModel_ ? &context : nullptr, unigramOnly);
+    // Prefer a path of complete syllables, with an unfinished final syllable.
+    // Short input keeps alternate readings; longer input uses one global path.
+    // Like libime's longest-match parser, a complete syllable beats initials.
+    std::vector<size_t> nextBoundary(raw.size()+1, raw.size()+1);
+    std::vector<int> cost(raw.size()+1, 100000);
+    cost.back()=0;
+    for (size_t pos=raw.size(); pos-->0;) {
+        if (raw[pos]=='\'' || raw[pos]==' ') { cost[pos]=cost[pos+1]; nextBoundary[pos]=pos+1; continue; }
+        for (size_t len=std::min(size_t(6),raw.size()-pos);len>0;--len) {
+            std::string token(raw.substr(pos,len));
+            for (auto& c:token) if(c>='A' && c<='Z') c+='a'-'A';
+            const bool full=syllables_.contains(token);
+            const bool partial=!full && pos+len==raw.size() &&
+                std::any_of(syllables_.begin(),syllables_.end(),[&](const auto& syl){return syl.starts_with(token);});
+            const int candidate=cost[pos+len]+1+(partial?2:0);
+            if ((full || partial) && candidate<cost[pos]) { cost[pos]=candidate; nextBoundary[pos]=pos+len; }
+        }
+    }
+    const bool constrained=raw.size()>6 && cost[0]<100000;
+    std::vector<bool> boundary(raw.size()+1,false);
+    if (constrained) for(size_t pos=0;pos<raw.size();pos=nextBoundary[pos]) { boundary[pos]=true; boundary[nextBoundary[pos]]=true; }
+    auto compatible=[&](const DictionaryCandidate& word,size_t pos) {
+        if (!constrained) return true;
+        const auto end=pos+word.consumed;
+        if (end>raw.size() || !boundary[pos] || !boundary[end]) return false;
+        size_t source=pos;
+        for(const auto& token:splitPinyin(word.pinyin)) {
+            for(char c:token) {
+                if(source==end) return end==raw.size(); // final-syllable completion
+                char entered=raw[source++];
+                if(entered>='A' && entered<='Z') entered+='a'-'A';
+                if(c!=entered) return false; // no initials inside full pinyin
+            }
+            if(!boundary[source]) return false;
+            while(source<end && (raw[source]=='\'' || raw[source]==' ')) ++source;
+        }
+        return source==end;
+    };
+    auto result = matches(raw, true, constrained ? 0 : limit, languageModel_ ? &context : nullptr, unigramOnly);
+    std::erase_if(result,[&](const auto& word){return !compatible(word,0);});
     if (unigramOnly) return result;
     // Compose dictionary words when there is no whole phrase in the lexicon.
     // A small beam gives an immediate fallback while the model runs.
-    if (!languageModel_ && !result.empty() && result.front().complete) return result;
+    if (!languageModel_ && !result.empty() && result.front().complete) {
+        if (result.size()>limit) result.resize(limit);
+        return result;
+    }
     struct Beam { std::string text, pinyin; double score; size_t words; LanguageModel::State state; bool predictive = false; };
     std::vector<std::vector<Beam>> beams(raw.size() + 1);
     beams[0].push_back({{}, {}, 0, 0, context});
     for (size_t pos = 0; pos < raw.size(); ++pos) {
         if (beams[pos].empty()) continue;
         if (raw[pos] == '\'') { beams[pos + 1] = beams[pos]; continue; }
-        auto words = matches(raw.substr(pos), true, languageModel_ ? 0 : 12);
+        auto words = matches(raw.substr(pos), true, (languageModel_ || constrained) ? 0 : 12);
+        std::erase_if(words,[&](const auto& word){return !compatible(word,pos);});
         // Preserve competing word lengths. Truncating all words together can
         // remove single-character paths before the LM can compare a sentence.
         std::unordered_map<size_t, size_t> perEnd;

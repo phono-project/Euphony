@@ -177,3 +177,9 @@ With [Inno Setup 6.3+](https://jrsoftware.org/isdl.php) installed, run `pixi run
 本项目使用 [Apache License 2.0](LICENSE)，第三方材料保留各自许可证。
 
 This project uses [Apache License 2.0](LICENSE). Third-party material retains their respective licenses.
+
+### 候选窗与回退分词
+
+候选窗的预编辑框默认隐藏，可在设置中开启。颜色模式支持遵循系统（默认）、亮色与暗色；两套配色独立保存，可分别调整背景、模型词、用户词和选定词颜色。暗色默认使用暗灰背景、暗绿模型词、暗紫用户词和深蓝选定词。
+
+字典回退对不超过 6 个字符的输入保留多种读法，并降低简拼和过度拆分路径的排序。更长输入通过动态规划优先选择完整音节较少的路径，末尾允许未完成音节；手动输入的分隔符会被保留。无法找到全拼路径时仍支持原有简拼回退。该策略参考 [libime 的拼音解析实现](https://github.com/fcitx/libime/blob/master/src/libime/pinyin/pinyinencoder.cpp)，不新增运行依赖。

@@ -35,6 +35,19 @@ int main() {
         auto fixture = temp / "dictionary.tsv";
         { std::ofstream out(fixture); out << "你\tni\t-0.1\n尼\tni\t-1\n倪\tni\t-2\n好\thao\t0\n"
             "你好\tni'hao\t0\n中国\tzhong'guo\t0\n吗\tma\t0\n嘛\tma\t-1\n居\tju\t0\n举\tju\t-1\n"; }
+        {
+            auto path=temp/"segmentation.tsv";
+            { std::ofstream out(path); out << "框\tkuang\t0\n哭\tku\t0\n啊\ta\t0\n你\tni\t0\n哥\tge\t0\n安\tan\t0\n西\txi\t0\n先\txian\t0\n"; }
+            Dictionary dictionary(path);
+            auto shortInput=dictionary.lookup("xian");
+            check(std::any_of(shortInput.begin(),shortInput.end(),[](const auto& c){return c.pinyin=="xian";}),"short input keeps whole syllable");
+            check(std::any_of(shortInput.begin(),shortInput.end(),[](const auto& c){return c.pinyin=="xi";}),"short input keeps alternate prefix");
+            auto longInput=dictionary.lookup("kuangkuang");
+            check(!longInput.empty() && longInput[0].pinyin=="kuang'kuang","long input prefers full syllables over ku a n g");
+            for(const auto& c:longInput) check(c.pinyin=="kuang" || c.pinyin=="kuang'kuang","long input prunes incompatible syllable paths");
+            auto explicitInput=dictionary.lookup("xi'anxi'an");
+            check(!explicitInput.empty() && explicitInput[0].pinyin=="xi'an'xi'an","explicit separators override segmentation");
+        }
         json config{{"dictionary_path",fixture.string()},{"model_enabled",false},{"input_mode","pinyin"},
             {"learning",true},{"user_directory",temp.string()},{"page_size",3},{"history_characters",32},
             {"engine",{{"schema_version","1.0"},{"tokenizer",{{"max_pinyin_chars",128}}}}},
