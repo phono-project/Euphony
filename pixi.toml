@@ -1,6 +1,6 @@
 [workspace]
 name = "euphony"
-version = "0.2.2"
+version = "0.2.3"
 description = "Windows TSF Chinese input method powered by phono-core"
 channels = ["conda-forge"]
 platforms = ["win-64"]
