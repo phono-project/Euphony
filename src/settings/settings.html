@@ -349,6 +349,7 @@
     function updateTheme() {
       const mode = $('theme').value || 'system';
       document.documentElement.dataset.theme = mode === 'system' ? (systemTheme.matches ? 'dark' : 'light') : mode;
+      if (native) native.postMessage({id:++serial, op:'preview_theme', dark:document.documentElement.dataset.theme === 'dark'});
     }
     systemTheme.addEventListener('change', updateTheme);
     function updateScheme() {

@@ -221,7 +221,7 @@ private:
                 app->frame_.paint(context);
                 if (!app->document_ready_) {
                     RECT bounds = app->frame_.content();
-                    auto background = CreateSolidBrush(RGB(247, 248, 245));
+                    auto background = CreateSolidBrush(app->frame_.background());
                     FillRect(context, &bounds, background); DeleteObject(background);
                 }
                 EndPaint(window, &paint);
@@ -437,6 +437,10 @@ private:
         if (!request.is_object() || !request.contains("id") || !request["id"].is_number_unsigned() ||
             !request.contains("op") || !request["op"].is_string()) return;
         const std::string operation = request["op"];
+        if (operation == "preview_theme") {
+            if (request.contains("dark") && request["dark"].is_boolean()) frame_.set_dark(request["dark"].get<bool>());
+            return;
+        }
         if (operation == "pick_path") {
             pick_path(request);
             return;
@@ -753,7 +757,8 @@ private:
             RECT client{}; GetClientRect(window_, &client);
             Gdiplus::Bitmap image(client.right, client.bottom, PixelFormat32bppARGB);
             Gdiplus::Graphics graphics(&image);
-            graphics.Clear(Gdiplus::Color(255, 247, 248, 245));
+            const auto background=frame_.background();
+            graphics.Clear(Gdiplus::Color(255,GetRValue(background),GetGValue(background),GetBValue(background)));
             Gdiplus::Image page(content.c_str());
             const auto bounds = frame_.content();
             graphics.DrawImage(&page, static_cast<INT>(bounds.left), static_cast<INT>(bounds.top),

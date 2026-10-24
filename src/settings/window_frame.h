@@ -8,6 +8,7 @@
 
 // The frame belongs to our window; WebView2 receives only the content rectangle.
 class WindowFrame {
+    bool dark_ = false;
     HWND window_{};
     HWND buttons_[3]{};
     bool hot_[3]{};
@@ -28,6 +29,14 @@ class WindowFrame {
     }
 public:
     ~WindowFrame() { if (font_) DeleteObject(font_); }
+    COLORREF background() const { return dark_ ? RGB(33,28,40) : RGB(247,248,245); }
+    bool dark() const { return dark_; }
+    void set_dark(bool dark) {
+        dark_=dark;
+        const COLORREF border=dark_?RGB(73,60,86):RGB(205,218,209);
+        DwmSetWindowAttribute(window_,DWMWA_BORDER_COLOR,&border,sizeof(border));
+        RedrawWindow(window_,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN);
+    }
     void attach(HWND window) { window_ = window; }
     void initialize(HINSTANCE instance, HWND window) {
         window_ = window;
@@ -37,7 +46,7 @@ public:
                 0, 0, 0, 0, window_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(first_button + i)), instance, nullptr);
             SetWindowSubclass(buttons_[i], button_proc, i, reinterpret_cast<DWORD_PTR>(this));
         }
-        const COLORREF border = RGB(205, 218, 209);
+        const COLORREF border = (dark_ ? RGB(73,60,86) : RGB(205,218,209));
         DwmSetWindowAttribute(window_, DWMWA_BORDER_COLOR, &border, sizeof(border));
         const auto rounded = DWMWCP_ROUND;
         DwmSetWindowAttribute(window_, DWMWA_WINDOW_CORNER_PREFERENCE, &rounded, sizeof(rounded));
@@ -97,17 +106,17 @@ public:
             const auto border = px(6);
             const RECT bands[] = {{0, px(42), border, bounds.bottom}, {bounds.right - border, px(42), bounds.right, bounds.bottom},
                 {0, bounds.bottom - border, bounds.right, bounds.bottom}};
-            auto background = CreateSolidBrush(RGB(247, 248, 245));
+            auto background = CreateSolidBrush(this->background());
             for (const auto& band : bands) FillRect(dc, &band, background);
             DeleteObject(background);
         }
-        auto brush = CreateSolidBrush(RGB(241, 245, 239)); FillRect(dc, &bar, brush); DeleteObject(brush);
-        brush = CreateSolidBrush(RGB(205, 218, 209)); FrameRect(dc, &bounds, brush); DeleteObject(brush);
-        HPEN pen = CreatePen(PS_SOLID, px(1), RGB(226, 232, 227)); auto old_pen = SelectObject(dc, pen);
+        auto brush = CreateSolidBrush((dark_ ? RGB(41,33,48) : RGB(241,245,239))); FillRect(dc, &bar, brush); DeleteObject(brush);
+        brush = CreateSolidBrush((dark_ ? RGB(73,60,86) : RGB(205,218,209))); FrameRect(dc, &bounds, brush); DeleteObject(brush);
+        HPEN pen = CreatePen(PS_SOLID, px(1), (dark_ ? RGB(73,60,86) : RGB(226,232,227))); auto old_pen = SelectObject(dc, pen);
         MoveToEx(dc, 0, px(41), nullptr); LineTo(dc, bounds.right, px(41)); SelectObject(dc, old_pen); DeleteObject(pen);
         auto icon = reinterpret_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_EUPHONY), IMAGE_ICON, px(24), px(24), LR_SHARED));
         DrawIconEx(dc, px(15), px(9), icon, px(24), px(24), 0, nullptr, DI_NORMAL);
-        auto old_font = SelectObject(dc, font_); SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(29, 48, 43));
+        auto old_font = SelectObject(dc, font_); SetBkMode(dc, TRANSPARENT); SetTextColor(dc, (dark_ ? RGB(238,231,245) : RGB(29,48,43)));
         RECT text{px(48), 0, bounds.right - px(150), px(42)};
         DrawTextW(dc, L"Euphony · 设置", -1, &text, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);
         SelectObject(dc, old_font);
@@ -116,10 +125,10 @@ public:
         const int index = static_cast<int>(draw.CtlID) - first_button;
         if (index < 0 || index > 2) return false;
         const bool active = hot_[index] || (draw.itemState & ODS_SELECTED);
-        auto brush = CreateSolidBrush(active ? index == 2 ? RGB(180, 51, 46) : RGB(221, 233, 222) : RGB(241, 245, 239));
+        auto brush = CreateSolidBrush(active ? index == 2 ? RGB(180, 51, 46) : (dark_ ? RGB(68,49,79) : RGB(221,233,222)) : (dark_ ? RGB(41,33,48) : RGB(241,245,239)));
         FillRect(draw.hDC, &draw.rcItem, brush); DeleteObject(brush);
         const int x = (draw.rcItem.right - px(12)) / 2, y = (draw.rcItem.bottom - px(12)) / 2;
-        auto pen = CreatePen(PS_SOLID, std::max(1, px(1)), active && index == 2 ? RGB(255, 255, 255) : RGB(29, 48, 43));
+        auto pen = CreatePen(PS_SOLID, std::max(1, px(1)), active && index == 2 ? RGB(255, 255, 255) : (dark_ ? RGB(238,231,245) : RGB(29,48,43)));
         auto old_pen = SelectObject(draw.hDC, pen); auto old_brush = SelectObject(draw.hDC, GetStockObject(HOLLOW_BRUSH));
         if (index == 0) { MoveToEx(draw.hDC, x, y + px(6), nullptr); LineTo(draw.hDC, x + px(12), y + px(6)); }
         else if (index == 1) {
