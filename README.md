@@ -91,7 +91,7 @@ Pinyin and seven Shuangpin schemes are supported: Xiaohe, Natural Code, Microsof
 | ← / →、Home / End | 编辑拼音光标 / Move the pinyin cursor |
 | Backspace / Delete | 删除或退回逐词选择 / Delete or return to word selection |
 | Enter / Escape | 提交 / 取消 / Commit / Cancel |
-| 单独 Shift / Shift alone | 中英切换 / Toggle Chinese and English |
+| 单独 Shift 或 Ctrl+Space / Shift alone or Ctrl+Space | 中英切换 / Toggle Chinese and English |
 
 ## 常用设置 / Settings
 

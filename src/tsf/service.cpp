@@ -800,6 +800,8 @@ public:
         if (SUCCEEDED(hr)) { stage="key event sink"; hr=keys->AdviseKeyEventSink(client_,this,TRUE); }
         TF_PRESERVEDKEY toggle{VK_SHIFT,TF_MOD_ON_KEYUP};
         if (keys) keys->PreserveKey(client_,kToggle,&toggle,L"Euphony 中 / EN",15);
+        TF_PRESERVEDKEY controlSpace{VK_SPACE,TF_MOD_CONTROL};
+        if (keys) keys->PreserveKey(client_,kControlSpace,&controlSpace,L"Euphony 中 / EN",15);
         mgr_.As(&ui_); mgr_.As(&langbar_);
         ComPtr<ITfCategoryMgr> categories;
         if (SUCCEEDED(CoCreateInstance(CLSID_TF_CategoryMgr,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&categories)))) categories->RegisterGUID(kPreeditAttribute,&attribute_);
@@ -814,7 +816,7 @@ public:
         if (worker_) { std::lock_guard lock(worker_->mutex); worker_->stop=true; worker_->window=nullptr; worker_->requests.clear(); worker_->wake.notify_one(); }
         worker_.reset();
         ComPtr<ITfKeystrokeMgr> keys;
-        if (SUCCEEDED(mgr_.As(&keys))) { TF_PRESERVEDKEY toggle{VK_SHIFT,TF_MOD_ON_KEYUP}; keys->UnpreserveKey(kToggle,&toggle); keys->UnadviseKeyEventSink(client_); }
+        if (SUCCEEDED(mgr_.As(&keys))) { TF_PRESERVEDKEY toggle{VK_SHIFT,TF_MOD_ON_KEYUP}; keys->UnpreserveKey(kToggle,&toggle); TF_PRESERVEDKEY controlSpace{VK_SPACE,TF_MOD_CONTROL}; keys->UnpreserveKey(kControlSpace,&controlSpace); keys->UnadviseKeyEventSink(client_); }
         ComPtr<ITfSource> source;
         if (SUCCEEDED(mgr_.As(&source))) {
             if (events_cookie_!=TF_INVALID_COOKIE) source->UnadviseSink(events_cookie_);
@@ -892,7 +894,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE OnTestKeyUp(ITfContext*,WPARAM,LPARAM,BOOL* eaten) override { if (!eaten) return E_POINTER; *eaten=FALSE; return S_OK; }
     HRESULT STDMETHODCALLTYPE OnKeyUp(ITfContext*,WPARAM,LPARAM,BOOL* eaten) override { if (!eaten) return E_POINTER; *eaten=FALSE; return S_OK; }
-    HRESULT STDMETHODCALLTYPE OnPreservedKey(ITfContext*,REFGUID id,BOOL* eaten) override { if (!eaten) return E_POINTER; *eaten=id==kToggle&&!shift_used_; if (*eaten) toggle(); return S_OK; }
+    HRESULT STDMETHODCALLTYPE OnPreservedKey(ITfContext*,REFGUID id,BOOL* eaten) override { if (!eaten) return E_POINTER; *eaten=(id==kToggle&&!shift_used_) || id==kControlSpace; if (*eaten) toggle(); return S_OK; }
     HRESULT STDMETHODCALLTYPE OnCompositionTerminated(TfEditCookie,ITfComposition* composition) override {
         if (composition_.Get()==composition) { composition_.Reset(); hide(); rotate(); preedit_.clear(); } return S_OK;
     }

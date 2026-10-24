@@ -110,6 +110,13 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                 check(keys->OnKeyDown(context.Get(),VK_SHIFT,0,&eaten),"Shift press failed");
                 check(keys->OnPreservedKey(context.Get(),euphony::tsf::kToggle,&eaten),"Chinese toggle failed");
                 snapshot_popup(hint,L"mode-chinese.bmp");
+                check(keys->OnPreservedKey(context.Get(),euphony::tsf::kControlSpace,&eaten),"Ctrl Space English toggle failed");
+                if (!eaten) throw std::runtime_error("Ctrl Space was not accepted");
+                check(keys->OnTestKeyDown(context.Get(),'N',0,&eaten),"Ctrl Space English ownership check failed");
+                if (eaten) throw std::runtime_error("Ctrl Space did not enter English mode");
+                check(keys->OnPreservedKey(context.Get(),euphony::tsf::kControlSpace,&eaten),"Ctrl Space Chinese toggle failed");
+                check(keys->OnTestKeyDown(context.Get(),'N',0,&eaten),"Ctrl Space Chinese ownership check failed");
+                if (!eaten) throw std::runtime_error("Ctrl Space did not return to Chinese mode");
                 auto type_ni=[&] {
                     check(keys->OnKeyDown(context.Get(),'N',0,&eaten),"Rapid test composition start failed");
                     check(keys->OnKeyDown(context.Get(),'I',0,&eaten),"Rapid test composition key failed");
