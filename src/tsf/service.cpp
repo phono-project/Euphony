@@ -204,6 +204,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     DWORD edit_cookie_ = TF_INVALID_COOKIE, layout_cookie_ = TF_INVALID_COOKIE;
     DWORD activation_{};
     HWND dispatch_{}, popup_{}, mode_popup_{};
+    bool show_preedit_ = false;
     COLORREF model_color_ = RGB(223,242,229);
     COLORREF user_color_ = RGB(251,228,236);
     HFONT font_{};
@@ -478,6 +479,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             }
         }
         preedit_=preedit; candidates_.clear();
+        show_preedit_=value.value("show_preedit",false);
         const auto list_generation=value.value("candidate_generation",value.value("generation",std::uint64_t{}));
         if (candidate_generation_!=list_generation) host_pages_.clear();
         candidate_generation_=list_generation;
@@ -562,7 +564,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             const auto max_width=static_cast<int>(monitor.rcWork.right-monitor.rcWork.left);
             HDC dc=GetDC(popup_); auto old=SelectObject(dc,font_);
             SIZE extent{}; GetTextExtentPoint32W(dc,preedit_.data(),static_cast<int>(preedit_.size()),&extent);
-            int width=std::min(max_width,std::max(220,static_cast<int>(extent.cx)+pad_*2+28));
+            int width=std::min(max_width,std::max(220,(show_preedit_ ? static_cast<int>(extent.cx) : 0)+pad_*2+28));
             const auto begin=std::min<std::size_t>(page_*page_size_,candidates_.size());
             const auto limit=std::min<std::size_t>(begin+page_size_,candidates_.size());
             std::vector<int> cell_widths;
@@ -575,7 +577,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             }
             SelectObject(dc,old); ReleaseDC(popup_,dc);
             candidate_cells_.clear();
-            int cell_x=4, cell_y=row_;
+            int cell_x=4, cell_y=show_preedit_ ? row_ : pad_/2;
             for (const auto cell_width:cell_widths) {
                 if (horizontal_) {
                     if (cell_x>4 && cell_x+cell_width>max_width-4) { cell_x=4; cell_y+=row_; }
@@ -604,7 +606,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         auto background=CreateSolidBrush(RGB(250,251,255)); FillRect(dc,&bounds,background); DeleteObject(background);
         auto oldfont=SelectObject(dc,font_); SetBkMode(dc,TRANSPARENT); SetTextColor(dc,RGB(45,49,70));
         const auto header=preedit_+(pending_?L"  …":L"");
-        TextOutW(dc,pad_,pad_/2,header.data(),static_cast<int>(header.size()));
+        if (show_preedit_) TextOutW(dc,pad_,pad_/2,header.data(),static_cast<int>(header.size()));
         auto begin=std::min<std::size_t>(page_*page_size_,candidates_.size());
         auto limit=std::min<std::size_t>(begin+page_size_,candidates_.size());
         for (auto i=begin;i<limit;++i) {

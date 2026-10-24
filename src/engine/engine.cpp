@@ -546,6 +546,7 @@ struct Engine::Impl {
             {"cursor",utf16Length(prefix+state.raw.substr(0,state.cursor))},{"commit",commit},
             {"commit_cursor_back",state.commitCursorBack},{"candidates",std::move(candidates)},
             {"selection",state.selection},{"page",state.selection/pageSize()},{"page_size",pageSize()},
+            {"show_preedit",config.value("show_preedit",false)},
             {"candidate_layout",config.value("candidate_layout", "vertical")},
             {"model_candidate_color",config.value("model_candidate_color", "#DFF2E5")},
             {"user_candidate_color",config.value("user_candidate_color", "#FBE4EC")},

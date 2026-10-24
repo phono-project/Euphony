@@ -12,6 +12,7 @@ int main() {
         if (!invalid) throw std::runtime_error("Invalid UTF8 accepted");
         auto config = euphony::default_config();
         euphony::validate_config(config);
+        if (config["show_preedit"] != false) throw std::runtime_error("Preedit must default to hidden");
         if (config["user_candidate_color"] != "#FBE4EC") throw std::runtime_error("Memory color default is not red");
         if (config["page_size"] != 5 || config["candidate_layout"] != "vertical") throw std::runtime_error("Candidate display defaults are incorrect");
         if (config["prefer_unigram_single_syllable"] != true) throw std::runtime_error("Single-syllable unigram default is not enabled");

@@ -151,6 +151,7 @@
               <div class="row-label"><label for="candidate-layout">候选排列</label><p>横向并排显示，纵向每行显示一个候选。</p></div>
               <select id="candidate-layout" data-key="candidate_layout"><option value="vertical">纵向</option><option value="horizontal">横向</option></select>
             </div>
+            <div class="row"><div class="row-label"><label for="show-preedit">显示预编辑框</label><p>在候选窗上方显示正在输入的拼音。</p></div><label class="toggle"><input id="show-preedit" data-key="show_preedit" type="checkbox"><span></span></label></div>
             <div class="row">
               <div class="row-label"><label for="model-candidate-color">模型候选颜色</label><p>模型候选使用此背景色，默认淡绿色。</p></div>
               <input id="model-candidate-color" data-key="model_candidate_color" type="color" value="#dff2e5" aria-label="模型候选颜色">
@@ -288,7 +289,7 @@
     let serial = 0, saved = null, busy = false, dirty = false;
     const defaults = {
       model_directory:'', core_library:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
-      shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
+      show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
       prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true,
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
       full_width:false, chinese_punctuation:true,
