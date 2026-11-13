@@ -94,9 +94,9 @@ Pinyin and seven Shuangpin schemes are supported: Xiaohe, Natural Code, Microsof
 | 单独 Shift 或 Ctrl+Space / Shift alone or Ctrl+Space | 中英切换，切换英文时提交原始输入 / Toggle Chinese and English; commit raw input when entering English |
 | Ctrl+, | 全半角切换 / Toggle full-width and half-width input |
 
-英文词典内置 370,105 个词条，默认从 4 个字母开始匹配；完整词优先，其余按词频排列，默认使用淡黄色背景。在折叠的「默认词典配置」中可调整词典路径、最短长度和英文词前置/后置。用户词与英文词都默认插入模型结果之前；同一侧按用户词、英文词的顺序加入。重复结果默认按模型、用户词、英文词确定来源。
+英文词典内置 370,105 个词条，默认从 4 个字母开始匹配，且完整输入与词条的莱文斯坦距离不超过 1（可调整，0 表示仅精确匹配）；完整词优先，其余按词频排列，默认使用淡黄色背景。在折叠的「默认词典配置」中可调整词典路径、最短长度、最大编辑距离和英文词前置/后置。用户词与英文词都默认插入模型结果之前；同一侧按用户词、英文词的顺序加入。重复结果默认按模型、用户词、英文词确定来源。
 
-The bundled English dictionary contains 370,105 words and starts matching after 4 letters by default. Exact words rank first, followed by frequency-ranked completions, with a pale yellow background. Its path, minimum length and placement before/after model candidates are under collapsed default dictionary settings. User and English words default to before model candidates, in that order on either side. Duplicate provenance defaults to model, user, then English.
+The bundled English dictionary contains 370,105 words and starts matching after 4 letters by default, with a maximum full-word Levenshtein distance of 1 (configurable; 0 accepts exact words only). Exact words rank first, followed by frequency-ranked eligible words, with a pale yellow background. Its path, minimum length, maximum edit distance and placement before/after model candidates are under collapsed default dictionary settings. User and English words default to before model candidates, in that order on either side. Duplicate provenance defaults to model, user, then English.
 
 Euphony 注册现代 Windows 宿主与 COM-less 激活能力，支持 Windows Terminal 的输入法选择。更新后需通过安装包或现有 Install 命令重新注册输入法，并重开 Terminal。
 

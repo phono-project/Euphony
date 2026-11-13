@@ -11,6 +11,31 @@
 #include <windows.h>
 
 namespace euphony {
+namespace {
+// Exact for pivots; a diagonal band and row cutoff suffice for membership tests.
+size_t englishDistance(std::string_view a,std::string_view b,size_t cutoff) {
+    if (a.size()>b.size()) std::swap(a,b);
+    if (b.size()-a.size()>cutoff) return cutoff+1;
+    cutoff=std::min(cutoff,b.size());
+    const auto outside=cutoff+1;
+    std::vector<size_t> previous(b.size()+1,outside),current(b.size()+1,outside);
+    for(size_t j=0;j<=std::min(b.size(),cutoff);++j)previous[j]=j;
+    for(size_t i=1;i<=a.size();++i) {
+        std::fill(current.begin(),current.end(),outside);
+        if(i<=cutoff)current[0]=i;
+        const auto first=i>cutoff?i-cutoff:1;
+        const auto last=std::min(b.size(),i+cutoff);
+        auto minimum=current[0];
+        for(size_t j=first;j<=last;++j) {
+            current[j]=std::min({previous[j]+1,current[j-1]+1,previous[j-1]+(a[i-1]!=b[j-1])});
+            minimum=std::min(minimum,current[j]);
+        }
+        if(minimum>cutoff)return outside;
+        previous.swap(current);
+    }
+    return previous[b.size()];
+}
+}
 EnglishDictionary::EnglishDictionary(const std::filesystem::path& path) {
     std::ifstream stream(path);
     if (!stream) throw std::runtime_error("Cannot open English dictionary");
@@ -23,16 +48,45 @@ EnglishDictionary::EnglishDictionary(const std::filesystem::path& path) {
         words_.push_back(std::move(word));
     }
     if (words_.empty()) throw std::runtime_error("English dictionary is empty");
-    std::stable_sort(words_.begin(),words_.end(),[](const auto& a,const auto& b) { return a.text < b.text; });
+    std::stable_sort(words_.begin(),words_.end(),[](const auto& a,const auto& b) {
+        if(a.text.size()!=b.text.size())return a.text.size()<b.text.size();
+        return a.text<b.text;
+    });
     words_.erase(std::unique(words_.begin(),words_.end(),[](const auto& a,const auto& b) { return a.text==b.text; }),words_.end());
+    // Each length group is split into contiguous lexicographic buckets.
+    for(size_t begin=0;begin<words_.size();) {
+        size_t end=begin+1;
+        while(end<words_.size() && end-begin<64 && words_[end].text.size()==words_[begin].text.size())++end;
+        Bucket bucket{begin,end,begin+(end-begin)/2,0};
+        for(size_t i=begin;i<end;++i) {
+            words_[i].pivotDistance=englishDistance(words_[i].text,words_[bucket.pivot].text,words_[i].text.size());
+            bucket.radius=std::max(bucket.radius,words_[i].pivotDistance);
+        }
+        buckets_.push_back(bucket);begin=end;
+    }
 }
-std::vector<std::string> EnglishDictionary::lookup(std::string_view prefix,size_t limit) const {
-    if (prefix.empty() || prefix.find_first_not_of("abcdefghijklmnopqrstuvwxyz")!=prefix.npos || !limit) return {};
-    auto first=std::lower_bound(words_.begin(),words_.end(),prefix,[](const auto& word,std::string_view key) { return word.text<key; });
+std::vector<std::string> EnglishDictionary::lookup(std::string_view input,size_t limit,size_t maxDistance) const {
+    if (input.empty() || input.find_first_not_of("abcdefghijklmnopqrstuvwxyz")!=input.npos || !limit) return {};
+    // The greatest possible edit distance is the longer word's length.
+    maxDistance=std::min(maxDistance,std::max(input.size(),words_.back().text.size()));
+    const auto minLength=input.size()>maxDistance?input.size()-maxDistance:0;
+    auto first=std::lower_bound(buckets_.begin(),buckets_.end(),minLength,[&](const auto& bucket,size_t length) {
+        return words_[bucket.begin].text.size()<length;
+    });
     std::vector<const Word*> matches;
-    for (auto it=first;it!=words_.end() && it->text.starts_with(prefix);++it) matches.push_back(&*it);
+    for(auto it=first;it!=buckets_.end() && words_[it->begin].text.size()<=input.size()+maxDistance;++it) {
+        const auto& pivot=words_[it->pivot].text;
+        const auto distance=englishDistance(input,pivot,std::max(input.size(),pivot.size()));
+        // d(q,w) >= d(q,p)-radius, and >= |d(q,p)-d(w,p)|.
+        if(distance>it->radius+maxDistance)continue;
+        for(size_t i=it->begin;i<it->end;++i) {
+            const auto pivotDistance=words_[i].pivotDistance;
+            if(distance>pivotDistance+maxDistance || pivotDistance>distance+maxDistance)continue;
+            if(englishDistance(input,words_[i].text,maxDistance)<=maxDistance)matches.push_back(&words_[i]);
+        }
+    }
     auto rank=[&](const Word* a,const Word* b) {
-        if ((a->text==prefix)!=(b->text==prefix)) return a->text==prefix;
+        if ((a->text==input)!=(b->text==input)) return a->text==input;
         if (a->frequency!=b->frequency) return a->frequency>b->frequency;
         return a->text<b->text;
     };

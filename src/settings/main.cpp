@@ -529,7 +529,7 @@ private:
             const fields = document.getElementById('fields');
             if (!fields || fields.disabled) return {ready:false};
             const ids = ['input-mode','shuangpin-scheme','page-size','candidate-layout','model-candidate-color','user-candidate-color','invalid-input','learning',
-                'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','user-words-enabled','user-words-first','model-directory','dictionary-path','language-model-path','english-dictionary-path','english-min-letters','english-words-first','english-candidate-color','dark-english-candidate-color','use-surrounding',
+                'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','user-words-enabled','user-words-first','model-directory','dictionary-path','language-model-path','english-dictionary-path','english-min-letters','english-max-distance','english-words-first','english-candidate-color','dark-english-candidate-color','use-surrounding',
                 'history-characters','context-slots','chinese-punctuation','full-width','full-width-digits','full-width-symbols','lowercase-ascii','normalize-v','separators',
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
                 'slack-interval','min-accept-context','trial-ratio','decay-alpha','decay-lambda'];
@@ -552,6 +552,9 @@ private:
             autoForReset.value = '128';
             document.querySelector('[data-reset="context.max_context_length"]').click();
             const resetAuto = autoForReset.value === '0';
+            const distanceForReset = document.getElementById('english-max-distance');distanceForReset.value = '0';
+            document.querySelector('[data-reset="english_max_distance"]').click();
+            const resetDistance = distanceForReset.value === '1';
             document.getElementById('revert').click();
             const theme = document.getElementById('theme');
             theme.value = 'dark'; theme.dispatchEvent(new Event('change', {bubbles:true}));
@@ -629,7 +632,7 @@ private:
             const scrollTop = document.querySelector('nav a.active').getAttribute('href') === '#input';
             const viewport = {width:innerWidth,height:innerHeight};
             const footer = document.querySelector('footer').getBoundingClientRect();
-            return {ready:true,missing,reset_isolated:resetIsolated,reset_model:resetModel,reset_auto:resetAuto,reset_dictionary:resetDictionary,reset_count:resetButtons.length,scroll_forward:scrollForward,scroll_backward:scrollBackward,scroll_bottom:scrollBottom,scroll_top:scrollTop,sidebar_sticky:sidebarSticky,dark_theme:darkTheme,light_theme:lightTheme,system_theme:systemTheme,theme_reverted:themeReverted,control_count:document.querySelectorAll('[data-key]').length,
+            return {ready:true,missing,reset_isolated:resetIsolated,reset_model:resetModel,reset_auto:resetAuto,reset_distance:resetDistance,reset_dictionary:resetDictionary,reset_count:resetButtons.length,scroll_forward:scrollForward,scroll_backward:scrollBackward,scroll_bottom:scrollBottom,scroll_top:scrollTop,sidebar_sticky:sidebarSticky,dark_theme:darkTheme,light_theme:lightTheme,system_theme:systemTheme,theme_reverted:themeReverted,control_count:document.querySelectorAll('[data-key]').length,
                 schemes:document.getElementById('shuangpin-scheme').options.length,
                 dirty_state:dirtyState,scheme_toggle:schemeToggle,validation,
                 layout_dirty_state:layoutDirtyState,candidate_layout:layout.value,
@@ -642,6 +645,7 @@ private:
                 dictionaries_collapsed:!document.getElementById('default-dictionaries').open,
                 core_picker_removed:!document.getElementById('core-library'),
                 english_dictionary_path:document.getElementById('english-dictionary-path').value,
+                english_max_distance:Number(document.getElementById('english-max-distance').value),
                 english_min_letters:Number(document.getElementById('english-min-letters').value),
                 english_words_first:document.getElementById('english-words-first').checked,
                 english_candidate_color:document.getElementById('english-candidate-color').value.toUpperCase(),
@@ -678,7 +682,7 @@ private:
                             return S_OK;
                         }
                         bool valid = test_dom_.at("missing").empty() &&
-                            test_dom_.value("reset_isolated",false) && test_dom_.value("reset_model",false) && test_dom_.value("reset_auto",false) &&
+                            test_dom_.value("reset_isolated",false) && test_dom_.value("reset_model",false) && test_dom_.value("reset_auto",false) && test_dom_.value("reset_distance",false) &&
                             test_dom_.at("reset_dictionary") == euphony::default_config().at("dictionary_path") &&
                             test_dom_.at("reset_count") == test_dom_.at("control_count") &&
                             test_dom_.value("scroll_forward", false) && test_dom_.value("scroll_backward", false) &&
@@ -692,7 +696,7 @@ private:
                             test_dom_.value("language_model_picker", false) && test_dom_.value("dictionaries_collapsed", false) && test_dom_.value("core_picker_removed", false) &&
                             test_dom_.value("scheme_toggle", false) && test_dom_.value("validation", false) &&
                             test_dom_.value("reverted", false) && test_dom_.value("footer_visible", false);
-                        for (const char* key : {"english_dictionary_path", "english_min_letters", "english_words_first", "english_candidate_color", "dark_english_candidate_color", "model_directory", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "full_width_digits", "full_width_symbols", "chinese_punctuation"})
+                        for (const char* key : {"english_dictionary_path", "english_min_letters", "english_max_distance", "english_words_first", "english_candidate_color", "dark_english_candidate_color", "model_directory", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "full_width_digits", "full_width_symbols", "chinese_punctuation"})
                             valid = valid && test_dom_.at(key) == test_config_.at(key);
                         if (!valid) {
                             finish_self_test({{"ok", false}, {"error", "Settings DOM or configuration binding check failed"}, {"dom", test_dom_}});

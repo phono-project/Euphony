@@ -11,11 +11,13 @@ namespace euphony {
 class EnglishDictionary {
 public:
     explicit EnglishDictionary(const std::filesystem::path& path);
-    std::vector<std::string> lookup(std::string_view prefix, size_t limit = 5) const;
+    std::vector<std::string> lookup(std::string_view input, size_t limit = 5, size_t maxDistance = 1) const;
     size_t size() const { return words_.size(); }
 private:
-    struct Word { std::string text; uint64_t frequency; };
+    struct Word { std::string text; uint64_t frequency; size_t pivotDistance = 0; };
+    struct Bucket { size_t begin, end, pivot, radius; };
     std::vector<Word> words_;
+    std::vector<Bucket> buckets_;
 };
 struct DictionaryCandidate {
     std::string text;

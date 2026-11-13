@@ -21,7 +21,7 @@ nlohmann::json default_config() {
     std::filesystem::path model;
     return {{"schema_version", 1}, {"model_directory", path_string(model)},
         {"dictionary_path", path_string(bin / L"data/libime.tsv")},
-        {"english_dictionary_path", path_string(bin / L"data/english.tsv")}, {"english_min_letters",4}, {"english_words_first",true},
+        {"english_dictionary_path", path_string(bin / L"data/english.tsv")}, {"english_min_letters",4}, {"english_max_distance",1}, {"english_words_first",true},
         {"candidate_source_priority", {"model","user","english"}},
         {"english_candidate_color","#FFF2C6"}, {"dark_english_candidate_color","#514627"}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
         {"prefer_unigram_single_syllable", true}, {"user_words_exact_only", true}, {"user_words_enabled", true}, {"user_words_first", true},
@@ -53,6 +53,7 @@ void validate_config(const nlohmann::json& c) {
     }
     if (sources!=std::set<std::string>{"model","user","english"}) throw std::runtime_error("Invalid candidate source priority");
     integer(c, "english_min_letters", 1, 128);
+    integer(c, "english_max_distance", 0, 128);
     integer(c, "page_size", 3, 10);
     integer(c, "history_characters", 0, 8192);
     integer(c, "context_slots", 1, 32);

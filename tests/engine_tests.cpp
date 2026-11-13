@@ -16,6 +16,14 @@
 using namespace euphony;
 using json = nlohmann::json;
 void check(bool condition,const char* message) { if (!condition) throw std::runtime_error(message); }
+size_t referenceDistance(const std::string& a,const std::string& b) {
+    std::vector<std::vector<size_t>> d(a.size()+1,std::vector<size_t>(b.size()+1));
+    for(size_t i=0;i<=a.size();++i)d[i][0]=i;
+    for(size_t j=0;j<=b.size();++j)d[0][j]=j;
+    for(size_t i=1;i<=a.size();++i)for(size_t j=1;j<=b.size();++j)
+        d[i][j]=std::min({d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]!=b[j-1])});
+    return d.back().back();
+}
 struct Client {
     Engine& engine;
     std::string session;
@@ -455,10 +463,52 @@ int main() {
             {std::ofstream out(englishFile);out<<"nihaoma\t30\nnihao\t10\nnihc\t3\nhello\t5\nhelloworld\t20\n";}
             EnglishDictionary words(englishFile);
             check(words.lookup("hello")[0]=="hello","exact English word beats more frequent completion");
-            check(words.lookup("hell")[0]=="helloworld","English completions use word frequency");
+            check(words.lookup("hell")[0]=="hello","English excludes distant prefix completions");
             check(words.lookup("hello'").empty() && words.lookup("zzzz").empty(),"English ignores separators and absent prefixes");
             EnglishDictionary bundled(std::filesystem::path(EUPHONY_TEST_DATA_DIR)/"english.tsv");
             check(bundled.size()>=370000 && bundled.lookup("euphony")[0]=="euphony","bundled English dictionary includes broad vocabulary");
+            const auto started=std::chrono::steady_clock::now();
+            for(int i=0;i<100;++i)bundled.lookup(i%2?"hello":"configuration");
+            std::cout<<"100 bundled English lookups: "<<std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-started).count()<<" ms\n";
+            // Compare the pruned search to an independent full scan across many
+            // length groups and lexicographic bucket boundaries.
+            std::vector<std::string> vocabulary,level={""};
+            for(int length=1;length<=6;++length) {
+                std::vector<std::string> next;
+                for(const auto& prefix:level)for(char c:std::string("abc"))next.push_back(prefix+c);
+                vocabulary.insert(vocabulary.end(),next.begin(),next.end());level=std::move(next);
+            }
+            auto bucketFile=temp/"english-buckets.tsv";
+            {std::ofstream out(bucketFile);for(size_t i=vocabulary.size();i>0;--i)out<<vocabulary[i-1]<<'\t'<<(i%53)<<'\n';}
+            EnglishDictionary bucketed(bucketFile);
+            std::vector<std::string> queries={"z","abcdefg","abdc","aaaaaaa","c"};
+            for(size_t i=0;i<vocabulary.size();i+=37)queries.push_back(vocabulary[i]);
+            for(const auto& query:queries)for(size_t threshold:{0,1,2,3,10}) {
+                std::vector<size_t> expected;
+                for(size_t i=0;i<vocabulary.size();++i)if(referenceDistance(query,vocabulary[i])<=threshold)expected.push_back(i);
+                std::sort(expected.begin(),expected.end(),[&](size_t a,size_t b) {
+                    if((vocabulary[a]==query)!=(vocabulary[b]==query))return vocabulary[a]==query;
+                    if((a+1)%53!=(b+1)%53)return (a+1)%53>(b+1)%53;
+                    return vocabulary[a]<vocabulary[b];
+                });
+                for(size_t limit:{1,5,2000}) {
+                    std::vector<std::string> reference;
+                    for(size_t i=0;i<std::min(limit,expected.size());++i)reference.push_back(vocabulary[expected[i]]);
+                    check(bucketed.lookup(query,limit,threshold)==reference,"triangle pruning and banded distance match full Levenshtein scan");
+                }
+            }
+            check(words.lookup("helloworld",5,0)==std::vector<std::string>{"helloworld"},"zero distance permits exact English only");
+            check(words.lookup("helloworld",0,1).empty(),"zero result limit stays empty");
+            check(words.lookup("hallo")==std::vector<std::string>{"hello"},"one substitution is accepted at the inclusive distance boundary");
+            check(words.lookup("helllo")==std::vector<std::string>{"hello"},"one deletion is accepted");
+            check(words.lookup("hell")==std::vector<std::string>{"hello"},"one insertion is accepted");
+            check(words.lookup("hlelo").empty(),"transposition counts as two Levenshtein edits");
+            for(int threshold:{0,1}) {
+                auto settings=config;settings["english_dictionary_path"]=englishFile.string();settings["english_max_distance"]=threshold;settings["user_directory"]="";
+                Engine filtered(settings);Client client{filtered,"distance-setting"};auto answer=client.type("hallo");
+                const bool matched=std::any_of(answer["candidates"].begin(),answer["candidates"].end(),[](const auto& c){return c["english"]==true;});
+                check(matched==(threshold==1),"engine applies the configured English edit distance");
+            }
             auto directory=temp/"english-learning";std::filesystem::create_directories(directory);
             Dictionary personal(fixture);personal.learn("ni'hao","倪好");personal.saveLearning(directory/"learning.json");
             auto wait=[](Client& client,json answer) {
@@ -468,15 +518,15 @@ int main() {
             for(bool userFirst:{false,true}) for(bool englishFirst:{false,true}) {
                 auto settings=config;settings["model_enabled"]=true;settings["model_directory"]=temp.string();
                 settings["user_directory"]=directory.string();settings["learning"]=false;
-                settings["english_dictionary_path"]=englishFile.string();settings["user_words_first"]=userFirst;settings["english_words_first"]=englishFirst;
+                settings["english_dictionary_path"]=englishFile.string();settings["english_max_distance"]=2;settings["user_words_first"]=userFirst;settings["english_words_first"]=englishFirst;
                 Engine engine(settings,[](const Request&){Result result;result.ready=true;result.candidates={"模型词","模型二"};return result;});
                 Client client{engine,"placement"};auto answer=wait(client,client.type("nihao"));
                 std::vector<std::string> expected;
                 if(userFirst)expected.push_back("倪好");
-                if(englishFirst){expected.push_back("nihao");expected.push_back("nihaoma");}
+                if(englishFirst){expected.push_back("nihao");expected.push_back("nihaoma");expected.push_back("nihc");}
                 expected.push_back("模型词");expected.push_back("模型二");
                 if(!userFirst)expected.push_back("倪好");
-                if(!englishFirst){expected.push_back("nihao");expected.push_back("nihaoma");}
+                if(!englishFirst){expected.push_back("nihao");expected.push_back("nihaoma");expected.push_back("nihc");}
                 for(size_t i=0;i<expected.size();++i)check(answer["candidates"][i]["text"]==expected[i],"before/after lists preserve user then English provider order");
                 auto index=std::find_if(answer["candidates"].begin(),answer["candidates"].end(),[](const auto& c){return c["text"]=="nihao";})-answer["candidates"].begin();
                 check(answer["candidates"][index]["english"]==true,"English provenance is exposed for highlighting");

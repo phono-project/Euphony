@@ -50,8 +50,18 @@ The combined data is distributed under CC BY-SA 4.0; license texts are in
 `data/licenses/ENGLISH-WORDS-UNLICENSE.txt` and `data/licenses/CC-BY-SA-4.0.txt`.
 
 English matching uses the original ASCII input in both pinyin and shuangpin modes.
-The default minimum is 4 letters. Exact words rank ahead of prefix completions;
-completions rank by frequency. Up to 5 English candidates are included.
+The default minimum is 4 letters. A word is eligible only when its full-word
+Levenshtein distance from the original input is at most `english_max_distance`
+(default 1; 0 accepts exact words only). Insertions, deletions and substitutions
+cost one edit each; a transposition costs two. Exact words rank first, and other
+eligible words rank by frequency. Up to 5 English candidates are included.
+
+At dictionary load, words are sorted by length and then alphabetically, and
+split into same-length lexicographic buckets of up to 64 words. Each bucket
+stores a pivot, its maximum distance to a member, and each member's distance to
+the pivot. Lookup excludes impossible lengths, then applies triangle-inequality
+bounds to buckets and members. Remaining words use banded Levenshtein evaluation
+with an early row cutoff. Pivot distances used for pruning are always exact.
 The default dictionary settings are collapsed in the settings window.
 User and English providers append to lists before or after model candidates,
 with user words appended first on each side. Both default to before the model.

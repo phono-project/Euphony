@@ -245,12 +245,16 @@
             <div class="path-field">
               <label for="english-dictionary-path">英文词典</label>
               <div class="path-input"><input id="english-dictionary-path" data-key="english_dictionary_path" type="text" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="english_dictionary_path">选择文件</button></div>
-              <p class="hint">使用内置英文词表与词频；按输入前缀匹配，完整单词优先。清空路径可禁用。</p>
+              <p class="hint">使用内置英文词表与词频；按完整输入的编辑距离匹配，完整单词优先。清空路径可禁用。</p>
               <p id="english-dictionary-detail" class="status-detail"></p>
             </div>
             <div class="row">
               <div class="row-label"><label for="english-min-letters">英文匹配最短长度</label><p>默认输入 4 个字母后开始匹配，拼音和双拼均使用原始字母。</p></div>
               <input id="english-min-letters" data-key="english_min_letters" type="number" min="1" max="128" value="4">
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="english-max-distance">英文匹配最大编辑距离</label><p>最多允许的字母插入、删除或替换次数，默认 1；设为 0 时仅接受完全匹配。</p></div>
+              <input id="english-max-distance" data-key="english_max_distance" type="number" min="0" max="128" value="1">
             </div>
             <div class="row">
               <div class="row-label"><label for="english-words-first">英文词前置</label><p>开启时插入模型结果之前，关闭后插入模型结果之后。同一侧先显示用户词，再显示英文词。</p></div>
@@ -327,7 +331,7 @@
     const defaults = {
       model_directory:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
       theme:'system', background_color:'#FAFBFF', dark_background_color:'#282828', dark_model_candidate_color:'#204532', dark_user_candidate_color:'#442D50', show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
-      prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true, english_words_first:true, english_min_letters:4, english_dictionary_path:'', english_candidate_color:'#FFF2C6', dark_english_candidate_color:'#514627',
+      prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true, english_words_first:true, english_min_letters:4, english_max_distance:1, english_dictionary_path:'', english_candidate_color:'#FFF2C6', dark_english_candidate_color:'#514627',
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
       full_width:false, full_width_digits:false, full_width_symbols:false, chinese_punctuation:true,
       engine:{schema_version:'1.0', tokenizer:{use_segmenter:true, segment_mode:'safe', repair:false,

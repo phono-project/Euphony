@@ -175,7 +175,7 @@ struct Engine::Impl {
         std::vector<Candidate> before, after, english;
         if (englishDictionary && state.cursor==state.raw.size() &&
             state.raw.size()>=static_cast<size_t>(config.value("english_min_letters",4))) {
-            for (const auto& word:englishDictionary->lookup(state.raw))
+            for (const auto& word:englishDictionary->lookup(state.raw,5,static_cast<size_t>(config.value("english_max_distance",1))))
                 english.push_back({word,word,{},false,state.raw.size(),{},false,false,true});
         }
         // Providers append in this order within each side of the model list.
