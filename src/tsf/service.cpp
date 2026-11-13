@@ -615,7 +615,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             return RGB((rgb>>16)&255,(rgb>>8)&255,rgb&255);
         };
         background_color_=color("background_color",dark?"#282828":"#FAFBFF");
-        selected_color_=color("selected_candidate_color",dark?"#183B66":"#E2EAFF");
+        selected_color_=color("selected_candidate_color",dark?"#88ACF0":"#607EB9");
         model_color_=color("model_candidate_color",dark?"#204532":"#DFF2E5");
         user_color_=color("user_candidate_color",dark?"#442D50":"#FBE4EC");
         text_color_=dark?RGB(240,240,240):RGB(30,34,56);
@@ -637,10 +637,15 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             const auto cell=candidate_cells_[i-begin]; const auto saved=SaveDC(dc);
             IntersectClipRect(dc,cell.left,cell.top,cell.right,cell.bottom);
             auto y=static_cast<int>(cell.top);
-            if (candidates_[i].user || candidates_[i].model || i==selection_) {
-                auto brush=CreateSolidBrush(i==selection_?selected_color_:(candidates_[i].user?user_color_:model_color_)); FillRect(dc,&cell,brush); DeleteObject(brush);
+            if (candidates_[i].user || candidates_[i].model) {
+                auto brush=CreateSolidBrush(candidates_[i].user?user_color_:model_color_); FillRect(dc,&cell,brush); DeleteObject(brush);
             }
-            if (i==selection_) { auto brush=CreateSolidBrush(RGB(96,126,185)); FrameRect(dc,&cell,brush); DeleteObject(brush); }
+            if (i==selection_) {
+                auto border=cell; auto brush=CreateSolidBrush(selected_color_);
+                const int thickness=std::max(2, MulDiv(2,GetDpiForWindow(popup_),96));
+                for (int edge=0;edge<thickness;++edge) { FrameRect(dc,&border,brush); InflateRect(&border,-1,-1); }
+                DeleteObject(brush);
+            }
             auto label=std::to_wstring((i-begin+1)%10)+L"  ";
             int x=cell.left+pad_/2; SetTextColor(dc,text_color_); TextOutW(dc,x,y,label.data(),static_cast<int>(label.size())); SIZE size{}; GetTextExtentPoint32W(dc,label.data(),static_cast<int>(label.size()),&size); x+=size.cx;
             IntersectClipRect(dc,cell.left,cell.top,cell.right-pad_/2,cell.bottom);
