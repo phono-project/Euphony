@@ -26,7 +26,7 @@ nlohmann::json default_config() {
         {"english_candidate_color","#FFF2C6"}, {"dark_english_candidate_color","#514627"}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
         {"prefer_unigram_single_syllable", true}, {"user_words_exact_only", true}, {"user_words_enabled", true}, {"user_words_first", true},
         {"input_mode", "pinyin"}, {"shuangpin_scheme", "xiaohe"},
-        {"theme", "system"}, {"background_color", "#FAFBFF"}, {"selected_candidate_color", "#607EB9"}, {"dark_background_color", "#282828"}, {"dark_selected_candidate_color", "#88ACF0"}, {"dark_model_candidate_color", "#204532"}, {"dark_user_candidate_color", "#442D50"}, {"show_preedit", false}, {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"user_candidate_color", "#FBE4EC"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
+        {"theme", "system"}, {"background_color", "#FAFBFF"}, {"dark_background_color", "#282828"}, {"dark_model_candidate_color", "#204532"}, {"dark_user_candidate_color", "#442D50"}, {"show_preedit", false}, {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"user_candidate_color", "#FBE4EC"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
         {"learning", true}, {"chinese_punctuation", true}, {"full_width", false}, {"full_width_digits", false}, {"full_width_symbols", false}, {"invalid_input", "pass"}, {"context_slots", 4}, {"user_directory", path_string(user_directory())},
         {"engine", {{"schema_version", "1.0"}, {"tokenizer", {{"normalization", {{"lowercase_ascii", true},
             {"normalize_v_to_u", true}, {"separators", "'"}}}, {"segment_mode", "safe"}, {"use_segmenter", true},
@@ -59,7 +59,7 @@ void validate_config(const nlohmann::json& c) {
     choice(c, "input_mode", {"pinyin", "shuangpin"});
     choice(c, "theme", {"system", "light", "dark"});
     choice(c, "candidate_layout", {"vertical", "horizontal"});
-    for (const auto* key : {"english_candidate_color", "dark_english_candidate_color", "model_candidate_color", "user_candidate_color", "background_color", "selected_candidate_color", "dark_background_color", "dark_selected_candidate_color", "dark_model_candidate_color", "dark_user_candidate_color"}) {
+    for (const auto* key : {"english_candidate_color", "dark_english_candidate_color", "model_candidate_color", "user_candidate_color", "background_color", "dark_background_color", "dark_model_candidate_color", "dark_user_candidate_color"}) {
         if (!c.contains(key) || !c[key].is_string()) throw std::runtime_error("Candidate color must be #RRGGBB");
         const auto color=c[key].get<std::string>();
         if (color.size()!=7 || color[0]!='#' || color.find_first_not_of("0123456789abcdefABCDEF",1)!=std::string::npos)
@@ -95,6 +95,7 @@ ConfigStore::ConfigStore() : value_(default_config()) {
             auto merged = value_;
             merged.merge_patch(stored);
             merged.erase("core_library");
+            merged.erase("selected_candidate_color"); merged.erase("dark_selected_candidate_color");
             merged["user_directory"] = path_string(user_directory());
             validate_config(merged);
             value_ = std::move(merged);
@@ -112,6 +113,7 @@ nlohmann::json ConfigStore::prepare(const nlohmann::json& input) const {
     auto next = value_;
     next.merge_patch(input);
     next.erase("core_library");
+    next.erase("selected_candidate_color"); next.erase("dark_selected_candidate_color");
     next["user_directory"] = path_string(user_directory());
     validate_config(next);
     return next;

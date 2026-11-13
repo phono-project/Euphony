@@ -260,12 +260,12 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                         // Locate the first highlighted cell in the actual rendered
                         // image, then click its neighbor in the chosen direction.
                         HDC pixels=GetDC(popup); RECT client_rect{}; GetClientRect(popup,&client_rect);
-                        const auto selected_color=std::string_view(theme)=="dark"?RGB(24,59,102):RGB(226,234,255);
+                        const auto selected_color=std::string_view(theme)=="dark"?RGB(215,215,215):RGB(5,4,0);
                         int first_y=0;
-                        while (first_y<client_rect.bottom && GetPixel(pixels,5,first_y)!=selected_color) ++first_y;
-                        int next_x=5,next_y=first_y;
-                        while (next_x<client_rect.right && GetPixel(pixels,next_x,first_y+1)==selected_color) ++next_x;
-                        while (next_y<client_rect.bottom && GetPixel(pixels,5,next_y)==selected_color) ++next_y;
+                        while (first_y<client_rect.bottom && GetPixel(pixels,4,first_y)!=selected_color) ++first_y;
+                        int next_x=4,next_y=first_y;
+                        while (next_x<client_rect.right && GetPixel(pixels,next_x,first_y)==selected_color) ++next_x;
+                        while (next_y<client_rect.bottom && GetPixel(pixels,4,next_y)==selected_color) ++next_y;
                         ReleaseDC(popup,pixels);
                         if (first_y>=client_rect.bottom) throw std::runtime_error("Selected candidate theme border missing");
                         BSTR chosen{}; check(candidates->GetString(1,&chosen),"Mouse target unavailable");
@@ -287,9 +287,9 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                         pixels=GetDC(popup);
                         const auto english_color=std::string_view(theme)=="dark"?RGB(81,70,39):RGB(255,242,198);
                         const bool sourcePreserved=GetPixel(pixels,8,first_y+8)==english_color;
-                        const bool thickBorder=GetPixel(pixels,5,first_y+8)==selected_color;
+                        const bool thinBorder=GetPixel(pixels,4,first_y+8)==selected_color && GetPixel(pixels,5,first_y+8)==english_color;
                         ReleaseDC(popup,pixels);
-                        if (!sourcePreserved || !thickBorder) throw std::runtime_error("English selection must preserve source fill inside a thick border");
+                        if (!sourcePreserved || !thinBorder) throw std::runtime_error("English selection must preserve source fill inside a thin contrasting border");
                         snapshot_popup(popup,std::string_view(theme)=="dark"?L"english-dark.bmp":L"english-light.bmp");
                         check(keys->OnKeyDown(context.Get(),VK_SPACE,0,&eaten),"English candidate commit failed");
                         pump_until([&] { return store->text==L"hello" && !IsWindowVisible(popup); },5000,"English candidate did not finish composition");

@@ -620,7 +620,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             return RGB((rgb>>16)&255,(rgb>>8)&255,rgb&255);
         };
         background_color_=color("background_color",dark?"#282828":"#FAFBFF");
-        selected_color_=color("selected_candidate_color",dark?"#88ACF0":"#607EB9");
+        selected_color_=RGB(255-GetRValue(background_color_),255-GetGValue(background_color_),255-GetBValue(background_color_));
         model_color_=color("model_candidate_color",dark?"#204532":"#DFF2E5");
         user_color_=color("user_candidate_color",dark?"#442D50":"#FBE4EC");
         english_color_=color("english_candidate_color",dark?"#514627":"#FFF2C6");
@@ -647,9 +647,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
                 auto brush=CreateSolidBrush(candidates_[i].model?model_color_:candidates_[i].user?user_color_:english_color_); FillRect(dc,&cell,brush); DeleteObject(brush);
             }
             if (i==selection_) {
-                auto border=cell; auto brush=CreateSolidBrush(selected_color_);
-                const int thickness=std::max(2, MulDiv(2,GetDpiForWindow(popup_),96));
-                for (int edge=0;edge<thickness;++edge) { FrameRect(dc,&border,brush); InflateRect(&border,-1,-1); }
+                auto brush=CreateSolidBrush(selected_color_); FrameRect(dc,&cell,brush);
                 DeleteObject(brush);
             }
             auto label=std::to_wstring((i-begin+1)%10)+L"  ";
