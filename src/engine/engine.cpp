@@ -464,6 +464,12 @@ struct Engine::Impl {
         if (request.value("ctrl", false) || request.value("alt", false)) {
             cancel(state,true); state.history.clear(); state.pendingPrefixes.clear(); return false;
         }
+        if (key == "CommitRaw") {
+            std::string raw;
+            for (const auto& selected : state.selected) raw += selected.source;
+            commit(state,output,raw+state.raw);
+            return true;
+        }
         if (key == "Select" || key == "Highlight") {
             if (!request.contains("candidate_generation") || request.at("candidate_generation").get<uint64_t>() != state.candidateGeneration) return false;
             const auto index = request.value("index", -1);

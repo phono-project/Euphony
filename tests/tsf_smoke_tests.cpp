@@ -99,11 +99,16 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                 check(keys->OnKeyDown(context.Get(),VK_OEM_5,0,&eaten),"Backslash input failed");
                 pump_until([&] { return store->text==L"、"; },5000,"Backslash did not insert enumeration comma");
                 store->clear();
+                check(keys->OnKeyDown(context.Get(),'N',0,&eaten),"Raw toggle first key failed");
+                check(keys->OnKeyDown(context.Get(),'I',0,&eaten),"Raw toggle second key failed");
+                const auto raw_ended=store->ended;
                 check(keys->OnKeyDown(context.Get(),VK_SHIFT,0,&eaten),"Shift press failed");
                 check(keys->OnPreservedKey(context.Get(),euphony::tsf::kToggle,&eaten),"English toggle failed");
                 if (!eaten) throw std::runtime_error("Mode toggle was not accepted");
                 check(keys->OnTestKeyDown(context.Get(),'N',0,&eaten),"English ownership check failed");
                 if (eaten) throw std::runtime_error("English mode consumed a letter");
+                pump_until([&] { candidates->GetCount(&count); return store->text==L"ni" && store->ended>raw_ended && count==0; },5000,"English toggle lost pending raw input");
+                store->clear();
                 HWND hint{};
                 EnumThreadWindows(GetCurrentThreadId(),[](HWND window,LPARAM target)->BOOL {
                     wchar_t title[128]{}; GetWindowTextW(window,title,128);

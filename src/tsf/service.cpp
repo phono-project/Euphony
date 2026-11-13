@@ -559,7 +559,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         if (updating_ui_) return;
         updating_ui_=true;
         struct Reset { bool& flag; ~Reset() { flag=false; } } reset{updating_ui_};
-        if (preedit_.empty() || !focused_) { hide(); return; }
+        if (preedit_.empty() || !focused_ || !chinese_) { hide(); return; }
         if (ui_ && ui_id_==TF_INVALID_COOKIE) {
             BOOL show=TRUE;
             if (SUCCEEDED(ui_->BeginUIElement(this,&show,&ui_id_))) ui_allowed_=show!=FALSE;
@@ -723,7 +723,19 @@ public:
     void toggle() {
         POINT point{}; GetCursorPos(&point);
         if (caret_valid_) point={caret_.left,caret_.bottom};
-        chinese_=!chinese_; cancel(); if (button_) button_->update(); update_mode();
+        bool committing=false;
+        if (chinese_ && context_ && (active_ || key_seq_>rendered_seq_)) {
+            auto value=request("key");
+            if (snapshot(context_.Get(),value) && !value.value("sensitive",false)) {
+                value["key"]="CommitRaw";
+                const auto sequence=value["seq"].get<std::uint64_t>();
+                committing=enqueue(std::move(value));
+                if (committing) { key_seq_=sequence; outstanding_.emplace_back(sequence,"CommitRaw"); }
+            }
+        }
+        chinese_=!chinese_;
+        if (committing) { active_=false; hide(); } else cancel();
+        if (button_) button_->update(); update_mode();
         if (mode_popup_ && !(activation_&TF_TMAE_SECUREMODE)) {
             MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromPoint(point,MONITOR_DEFAULTTONEAREST),&monitor);
             point.x=std::clamp(point.x,monitor.rcWork.left,monitor.rcWork.right-48);

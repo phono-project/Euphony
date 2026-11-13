@@ -67,6 +67,8 @@ int main() {
             check(engine.handle({{"version",1},{"session","A"},{"seq",a.seq},{"op","key"},{"key","Space"}})["commit"]=="","repeated seq never commits twice");
             check(b.request("key","Enter")["commit"]=="hao","Enter commits raw pinyin");
             a.type("nihao");
+            check(a.request("key","CommitRaw")["commit"]=="nihao","mode switch commits raw input");
+            a.type("nihao");
             answer=a.request("key","Left");
             check(answer["cursor"]==4,"cursor moves within raw pinyin");
             a.request("key","Home");
@@ -78,6 +80,9 @@ int main() {
             check(index<static_cast<decltype(index)>(answer["candidates"].size()),"partial dictionary proposal");
             answer=a.request("key","Select",{{"index",index},{"candidate_generation",answer["candidate_generation"]}});
             check(answer["preedit"]=="你m" && answer["commit"]=="","partial selection keeps composition");
+            check(a.request("key","CommitRaw")["commit"]=="nim","raw commit restores partially selected source");
+            answer=a.type("nim");
+            answer=a.request("key","Select",{{"index",index},{"candidate_generation",answer["candidate_generation"]}});
             check(answer["cursor"]==2,"selected Chinese prefix uses UTF-16 cursor");
             answer=a.request("key","Home");
             answer=a.request("key","Backspace");
