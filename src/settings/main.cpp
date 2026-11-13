@@ -10,6 +10,7 @@
 #include <gdiplus.h>
 
 #include "common/ipc.h"
+#include "common/config.h"
 #include "window_frame.h"
 
 #include <algorithm>
@@ -479,6 +480,7 @@ private:
                 json message = {{"version", 1}, {"op", request["op"]}};
                 if (request["op"] == "set_config") message["config"] = request["config"];
                 result = client.call(message);
+                if (request["op"] == "get_config") result["defaults"] = euphony::default_config();
             } catch (const std::exception& error) {
                 result = {{"ok", false}, {"error", error.what()}};
             }
@@ -532,6 +534,25 @@ private:
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
                 'slack-interval','min-accept-context','trial-ratio','decay-alpha','decay-lambda'];
             const missing = ids.filter(id => !document.getElementById(id));
+            const resetButtons = [...document.querySelectorAll('[data-reset]')];
+            const pageForReset = document.getElementById('page-size');
+            const historyForReset = document.getElementById('history-characters');
+            pageForReset.value = '4'; historyForReset.value = '777';
+            historyForReset.dispatchEvent(new Event('change', {bubbles:true}));
+            document.querySelector('[data-reset="page_size"]').click();
+            const resetIsolated = pageForReset.value === '5' && historyForReset.value === '777' && !document.getElementById('save').disabled;
+            document.getElementById('model-directory').value = 'C:/custom-model';
+            document.querySelector('[data-reset="model_directory"]').click();
+            const resetModel = document.getElementById('model-directory').value === '';
+            const dictionaryForReset = document.getElementById('dictionary-path');
+            dictionaryForReset.value = 'C:/custom-dictionary.tsv';
+            document.querySelector('[data-reset="dictionary_path"]').click();
+            const resetDictionary = dictionaryForReset.value;
+            const autoForReset = document.getElementById('max-context-length');
+            autoForReset.value = '128';
+            document.querySelector('[data-reset="context.max_context_length"]').click();
+            const resetAuto = autoForReset.value === '0';
+            document.getElementById('revert').click();
             const theme = document.getElementById('theme');
             theme.value = 'dark'; theme.dispatchEvent(new Event('change', {bubbles:true}));
             const darkTheme = document.documentElement.dataset.theme === 'dark' &&
@@ -608,7 +629,7 @@ private:
             const scrollTop = document.querySelector('nav a.active').getAttribute('href') === '#input';
             const viewport = {width:innerWidth,height:innerHeight};
             const footer = document.querySelector('footer').getBoundingClientRect();
-            return {ready:true,missing,scroll_forward:scrollForward,scroll_backward:scrollBackward,scroll_bottom:scrollBottom,scroll_top:scrollTop,sidebar_sticky:sidebarSticky,dark_theme:darkTheme,light_theme:lightTheme,system_theme:systemTheme,theme_reverted:themeReverted,control_count:document.querySelectorAll('[data-key]').length,
+            return {ready:true,missing,reset_isolated:resetIsolated,reset_model:resetModel,reset_auto:resetAuto,reset_dictionary:resetDictionary,reset_count:resetButtons.length,scroll_forward:scrollForward,scroll_backward:scrollBackward,scroll_bottom:scrollBottom,scroll_top:scrollTop,sidebar_sticky:sidebarSticky,dark_theme:darkTheme,light_theme:lightTheme,system_theme:systemTheme,theme_reverted:themeReverted,control_count:document.querySelectorAll('[data-key]').length,
                 schemes:document.getElementById('shuangpin-scheme').options.length,
                 dirty_state:dirtyState,scheme_toggle:schemeToggle,validation,
                 layout_dirty_state:layoutDirtyState,candidate_layout:layout.value,
@@ -657,6 +678,9 @@ private:
                             return S_OK;
                         }
                         bool valid = test_dom_.at("missing").empty() &&
+                            test_dom_.value("reset_isolated",false) && test_dom_.value("reset_model",false) && test_dom_.value("reset_auto",false) &&
+                            test_dom_.at("reset_dictionary") == euphony::default_config().at("dictionary_path") &&
+                            test_dom_.at("reset_count") == test_dom_.at("control_count") &&
                             test_dom_.value("scroll_forward", false) && test_dom_.value("scroll_backward", false) &&
                             test_dom_.value("scroll_bottom", false) && test_dom_.value("scroll_top", false) &&
                             test_dom_.value("sidebar_sticky", false) && test_dom_.value("dark_theme", false) && test_dom_.value("light_theme", false) &&

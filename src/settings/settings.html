@@ -72,6 +72,9 @@
     .row-label > label { display:block; font-weight:600; }
     .row-label > p { color:var(--muted); font-size:12px; margin-top:3px; }
     .row > select { max-width:180px; width:180px; }
+    .field-controls { display:flex; align-items:center; gap:10px; flex:none; }
+    .field-controls > select { max-width:180px; width:180px; }
+    .reset-field { font-size:11px; padding:5px 8px; color:var(--muted); }
     .toggle { position:relative; display:inline-block; flex:none; width:42px; height:24px; }
     .toggle input { appearance:none; width:42px; height:24px; margin:0; padding:0; cursor:pointer; border:0; border-radius:20px; background:var(--toggle); transition:background .15s; }
     .toggle input:checked { background:var(--accent); }
@@ -320,7 +323,7 @@
     const controls = [...document.querySelectorAll('[data-key]')];
     const pending = new Map();
     const native = window.chrome && window.chrome.webview;
-    let serial = 0, saved = null, busy = false, dirty = false;
+    let serial = 0, saved = null, busy = false, dirty = false, factoryDefaults = null;
     const defaults = {
       model_directory:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
       theme:'system', background_color:'#FAFBFF', dark_background_color:'#282828', dark_model_candidate_color:'#204532', dark_user_candidate_color:'#442D50', show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
@@ -340,6 +343,26 @@
       parts.forEach(part => { if (!parent[part] || typeof parent[part] !== 'object') parent[part] = {}; parent = parent[part]; });
       if (value === undefined) delete parent[last]; else parent[last] = value;
     }
+    controls.forEach(control => {
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'button small reset-field';
+      button.textContent = '恢复默认'; button.dataset.reset = control.dataset.key;
+      button.setAttribute('aria-label', '恢复默认：' + (control.labels?.[0]?.textContent.trim() || control.getAttribute('aria-label') || control.dataset.key));
+      const path = control.closest('.path-input');
+      if (path) path.append(button);
+      else {
+        const target = control.closest('.toggle') || control;
+        const wrapper = document.createElement('div'); wrapper.className = 'field-controls';
+        target.before(wrapper); wrapper.append(target, button);
+      }
+      button.addEventListener('click', () => {
+        if (!saved || busy) return;
+        const value = read(factoryDefaults || defaults, control.dataset.key);
+        if (control.type === 'checkbox') control.checked = value === true;
+        else control.value = value === undefined ? (control.dataset.auto ?? '') : String(value);
+        clearValidation(); control.dispatchEvent(new Event('change', {bubbles:true}));
+      });
+    });
     function showError(title, detail) {
       $('error-title').textContent = title;
       $('error-detail').textContent = detail || '输入服务未提供详细原因，请重新载入。';
@@ -487,6 +510,7 @@
       try {
         const result = await request('get_config');
         if (!result.ok || !result.config) throw new Error(result.error || '输入服务没有返回有效配置。');
+        factoryDefaults = clone(result.defaults || defaults);
         saved = clone(result.config);
         loadForm(saved); showStatus(saved, result.status);
       } catch (error) {
