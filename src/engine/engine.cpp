@@ -33,7 +33,7 @@ struct CandidateSnapshot {
 };
 struct State {
     uint64_t id = 0, generation = 0, candidateGeneration = 0, nextCandidateGeneration = 0, lastSeq = 0;
-    bool hasSeq = false, pending = false, frozen = false, sensitive = false;
+    bool hasSeq = false, pending = false, frozen = false, sensitive = false, contextDisabled = false;
     std::string raw, history, error, candidateSource = "dictionary";
     std::string candidateInput;
     size_t cursor = 0, selection = 0;
@@ -204,6 +204,11 @@ struct Engine::Impl {
         }
     }
     void synchronizeHistory(State& state, const json& request) {
+        state.contextDisabled = request.value("context_disabled",false);
+        if (state.contextDisabled) {
+            if (!state.history.empty()) { cancel(state); ++state.generation; }
+            state.history.clear(); state.pendingPrefixes.clear();
+        }
         const bool sensitive = request.value("sensitive", false);
         if (sensitive != state.sensitive) {
             cancel(state);
@@ -216,7 +221,7 @@ struct Engine::Impl {
             candidateIdentity(state,previous);
             ++state.generation;
         }
-        if (sensitive) { state.history.clear(); state.pendingPrefixes.clear(); return; }
+        if (sensitive || state.contextDisabled) { state.history.clear(); state.pendingPrefixes.clear(); return; }
         if (!config.value("use_surrounding", true) || !request.value("context_valid", false)) return;
         // The TSF host supplies only the prefix before the composition/caret.
         // An unchanged or partially acknowledged application prefix cannot
@@ -236,7 +241,7 @@ struct Engine::Impl {
         }
     }
     void record(State& state, const std::string& commit) {
-        if (state.sensitive) { state.history.clear(); state.pendingPrefixes.clear(); return; }
+        if (state.sensitive || state.contextDisabled) { state.history.clear(); state.pendingPrefixes.clear(); return; }
         if (commit.empty()) return;
         if (state.pendingPrefixes.empty()) state.pendingPrefixes.push_back(state.history);
         state.history = utf8Tail(state.history + commit, historyLimit());

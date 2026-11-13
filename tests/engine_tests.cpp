@@ -439,6 +439,17 @@ int main() {
             check(profile.convert("u'i'v").tokens.empty(),"lone u/i/v remain invalid");
             check(profile.convert("lo").tokens[0].alternatives==std::vector<std::string>{"lo","luo"},"shuangpin ambiguity preserved");
         }
+        {
+            auto settings=config; settings["model_enabled"]=true; settings["model_directory"]=temp.string(); settings["user_directory"]="";
+            std::atomic_bool leaked=false;
+            Engine engine(settings,[&](const Request& request) { if (!request.history.empty()) leaked=true; Result result;result.ready=true;return result; });
+            Client client{engine,"console"};
+            client.request("key","n",{{"context_disabled",true},{"context_valid",true},{"surrounding","旧上下文"}});
+            client.request("key","CommitRaw",{{"context_disabled",true}});
+            client.request("key","h",{{"context_disabled",true}});
+            for(int i=0;i<100;++i) { auto answer=client.request("poll",{},{{"context_disabled",true}}); if(!answer["pending"].get<bool>())break; std::this_thread::sleep_for(std::chrono::milliseconds(2)); }
+            check(!leaked.load(),"console ignores surrounding text and committed history");
+        }
         auto presentation=presentCandidate("你好",{{2,3,1,"!"}},InvalidInputPolicy::Delete);
         check(presentation.committed=="你好" && presentation.pieces[1].deleted,"invalid text uses struck-out presentation");
         check(utf16Length("你😀a")==4,"UTF-16 supplementary character count");

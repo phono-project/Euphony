@@ -63,6 +63,12 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
     check(document->Push(context.Get()),"Context push failed");
     try {
         for (int cycle=0;cycle<2;++cycle) {
+            if (cycle==1) {
+                check(document->Pop(TF_POPF_ALL),"Normal context removal failed");
+                context.Reset(); store->transitory=true;
+                check(document->CreateContext(client,0,static_cast<ITextStoreACP*>(store.Get()),&context,&cookie),"Transitory context unavailable");
+                check(document->Push(context.Get()),"Transitory context push failed");
+            }
             check(service->ActivateEx(adapter.Get(),service_client,0),"Service activation failed");
             ComPtr<ITfActiveLanguageProfileNotifySink> selected; check(service->QueryInterface(IID_PPV_ARGS(&selected)),"Profile sink missing");
             check(selected->OnActivated(euphony::tsf::kService,euphony::tsf::kProfile,TRUE),"Test profile selection failed");

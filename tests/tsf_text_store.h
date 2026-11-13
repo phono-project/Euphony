@@ -17,7 +17,7 @@ class TestTextStore final : public ITextStoreACP, public ITfContextOwnerComposit
 public:
     std::wstring text;
     UINT started{},ended{},ui_updates{};
-    bool show_candidates = false, defer_layout = false;
+    bool show_candidates = false, defer_layout = false, transitory = false;
     int layout_state = 0; // 0 ready, 1 TS_E_NOLAYOUT, 2 successful empty extent.
     void publish_layout(int state) { layout_state=state; if (sink_) sink_->OnLayoutChange(TS_LC_CHANGE,1); }
     TestTextStore() { window_=CreateWindowExW(0,L"EDIT",L"",WS_POPUP,0,0,1,1,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr); }
@@ -47,7 +47,7 @@ public:
         if (lock_) { *result=TS_E_SYNCHRONOUS; return S_OK; }
         lock_=flags; *result=sink_->OnLockGranted(flags); lock_=0; return S_OK;
     }
-    HRESULT STDMETHODCALLTYPE GetStatus(TS_STATUS* status) override { if (!status) return E_POINTER; *status={0,TS_SS_NOHIDDENTEXT}; return S_OK; }
+    HRESULT STDMETHODCALLTYPE GetStatus(TS_STATUS* status) override { if (!status) return E_POINTER; *status={0,static_cast<DWORD>(TS_SS_NOHIDDENTEXT | (transitory?TS_SS_TRANSITORY:0))}; return S_OK; }
     HRESULT STDMETHODCALLTYPE QueryInsert(LONG start,LONG end,ULONG,LONG* first,LONG* last) override {
         if (!first || !last || start<0 || end<start || end>static_cast<LONG>(text.size())) return E_INVALIDARG;
         *first=start; *last=end; return S_OK;

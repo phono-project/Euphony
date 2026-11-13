@@ -344,6 +344,10 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         TF_STATUS status{};
         if (!context || FAILED(context->GetStatus(&status)) || (status.dwDynamicFlags&TF_SD_READONLY) ||
             compartment(context,GUID_COMPARTMENT_KEYBOARD_DISABLED) || compartment(context,GUID_COMPARTMENT_EMPTYCONTEXT)) return false;
+        // Console/transitory documents only own the current composition. They
+        // cannot provide a durable document prefix after text is committed.
+        const bool context_disabled=(status.dwStaticFlags&TF_SS_TRANSITORY) || (activation_&TF_TMAE_CONSOLE);
+        value["context_disabled"]=context_disabled;
         bool permitted=false;
         auto hr=edit(context,TF_ES_SYNC|TF_ES_READ,[&](TfEditCookie cookie) {
             value["sensitive"]=sensitive(context,cookie);
@@ -354,13 +358,13 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             ComPtr<ITfContextView> view;
             if (SUCCEEDED(context->GetActiveView(&view))) locate_caret(view.Get(),cookie,range.Get());
             permitted=true;
-            if (!use_surrounding_ || !history_characters_ || key_seq_>rendered_seq_) return S_OK;
+            if (context_disabled || !use_surrounding_ || !history_characters_ || key_seq_>rendered_seq_) return S_OK;
             // Read only the left prefix before our composition, never the full document.
-            if (composition_ && FAILED(composition_->GetRange(&range))) return E_FAIL;
-            range->Collapse(cookie,TF_ANCHOR_START);
-            ComPtr<ITfRange> prefix; range->Clone(&prefix);
+            if (composition_ && FAILED(composition_->GetRange(&range))) return S_OK;
+            if (FAILED(range->Collapse(cookie,TF_ANCHOR_START))) return S_OK;
+            ComPtr<ITfRange> prefix; if (FAILED(range->Clone(&prefix))) return S_OK;
             const auto units=history_characters_*2+1;
-            LONG moved{}; prefix->ShiftStart(cookie,-static_cast<LONG>(units),&moved,nullptr);
+            LONG moved{}; if (FAILED(prefix->ShiftStart(cookie,-static_cast<LONG>(units),&moved,nullptr))) return S_OK;
             std::vector<wchar_t> buffer(units+1); ULONG length{};
             if (SUCCEEDED(prefix->GetText(cookie,0,buffer.data(),units,&length))) {
                 std::wstring text(buffer.data(),length);
