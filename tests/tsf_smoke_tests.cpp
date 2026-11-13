@@ -1,5 +1,6 @@
 #include "tsf/guids.h"
 #include "tsf_text_store.h"
+#include "tsf_console_owner.h"
 #include "tsf_thread_adapter.h"
 #include "common/ipc.h"
 #include <msctf.h>
@@ -336,6 +337,38 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
     if (broker_present()) throw std::runtime_error("Frontend deactivation restarted the stopped broker");
     document->Pop(TF_POPF_ALL); source->UnadviseSink(ui_cookie); manager->Deactivate();
 }
+void console_integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandidateListUIElementBehavior* candidates) {
+    ComPtr<ITfThreadMgrEx> manager; check(CoCreateInstance(CLSID_TF_ThreadMgr,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&manager)),"Console thread manager unavailable");
+    TfClientId client{};check(manager->ActivateEx(&client,TF_TMAE_NOACTIVATETIP|TF_TMAE_NOACTIVATEKEYBOARDLAYOUT|TF_TMAE_CONSOLE),"Console thread activation failed");
+    ComPtr<ITfClientId> identifiers;check(manager.As(&identifiers),"Console identifiers unavailable");
+    TfClientId service_client{};check(identifiers->GetClientId(euphony::tsf::kService,&service_client),"Console service identifier unavailable");
+    ComPtr<TestThreadAdapter> adapter;adapter.Attach(new TestThreadAdapter(manager.Get()));
+    ComPtr<TestConsoleOwner> owner;owner.Attach(new TestConsoleOwner);
+    ComPtr<ITfDocumentMgr> document;check(manager->CreateDocumentMgr(&document),"Console document unavailable");
+    ComPtr<ITfContext> context;TfEditCookie cookie{};
+    check(document->CreateContext(client,0,static_cast<ITfContextOwnerCompositionSink*>(owner.Get()),&context,&cookie),"Console owner context unavailable");
+    ComPtr<ITfSource> source;check(context.As(&source),"Console context source unavailable");DWORD owner_cookie{};
+    check(source->AdviseSink(IID_ITfContextOwner,static_cast<ITfContextOwner*>(owner.Get()),&owner_cookie),"Console owner advice failed");
+    owner->context=context.Get();owner->client=client;DWORD text_cookie{};
+    check(source->AdviseSink(IID_ITfTextEditSink,static_cast<ITfTextEditSink*>(owner.Get()),&text_cookie),"Console edit advice failed");
+    check(document->Push(context.Get()),"Console context push failed");
+    check(service->ActivateEx(adapter.Get(),service_client,TF_TMAE_CONSOLE|TF_TMAE_COMLESS),"Console service activation failed");
+    ComPtr<ITfActiveLanguageProfileNotifySink> profile;check(service->QueryInterface(IID_PPV_ARGS(&profile)),"Console profile sink unavailable");
+    check(profile->OnActivated(euphony::tsf::kService,euphony::tsf::kProfile,TRUE),"Console profile activation failed");
+    check(manager->SetFocus(document.Get()),"Console document focus failed");
+    try {
+        BOOL eaten{};check(keys->OnTestKeyDown(context.Get(),'N',0,&eaten),"Console key test failed");
+        if (!eaten) throw std::runtime_error("Console owner did not consume pinyin start key");
+        check(keys->OnKeyDown(context.Get(),'N',0,&eaten),"Console first key failed");
+        check(keys->OnKeyDown(context.Get(),'I',0,&eaten),"Console second key failed");
+        UINT count{};pump_until([&] { candidates->GetCount(&count);return count>0 && owner->preview==L"ni"; },8000,"Console owner never displayed composition or presented candidates");
+        BSTR first{};check(candidates->GetString(0,&first),"Console first candidate unavailable");
+        std::wstring expected(first,SysStringLen(first));SysFreeString(first);
+        check(keys->OnKeyDown(context.Get(),VK_SPACE,0,&eaten),"Console candidate selection failed");
+        pump_until([&] { return owner->output==expected && owner->preview.empty(); },5000,"Console owner lost committed candidate");
+    } catch (...) { service->Deactivate();document->Pop(TF_POPF_ALL);source->UnadviseSink(text_cookie);source->UnadviseSink(owner_cookie);manager->Deactivate();throw; }
+    service->Deactivate();document->Pop(TF_POPF_ALL);source->UnadviseSink(text_cookie);source->UnadviseSink(owner_cookie);manager->Deactivate();
+}
 int wmain(int argc,wchar_t** argv) {
     if (argc!=2) return 2;
     const auto initialized=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
@@ -367,6 +400,7 @@ int wmain(int argc,wchar_t** argv) {
             TF_DISPLAYATTRIBUTE style{}; check(attribute->GetAttributeInfo(&style),"Preedit style unavailable");
             if (style.lsStyle!=TF_LS_SOLID || style.bAttr!=TF_ATTR_INPUT) throw std::runtime_error("Incorrect composition style");
             if (unload()!=S_FALSE) throw std::runtime_error("DLL unloaded with live COM interfaces");
+            console_integration(service.Get(),keys.Get(),candidates.Get());
             integration(service.Get(),keys.Get(),candidates.Get());
             check(service->Deactivate(),"Inactive service cleanup failed");
         }

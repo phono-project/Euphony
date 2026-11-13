@@ -88,6 +88,9 @@ def main():
                 require(value(winreg.HKEY_LOCAL_MACHINE, CLSID + r"\InprocServer32", view=view) == str(install / relative),
                         f"TSF registration mismatch for view {view}")
                 require(exists(winreg.HKEY_LOCAL_MACHINE, TIP, view), f"Missing TSF profile for view {view}")
+                for category in ("{364215D9-75BC-11D7-A6EF-00065B84435C}", "{13A016DF-560B-46CD-947A-4C3AF1E0E35D}"):
+                    require(exists(winreg.HKEY_LOCAL_MACHINE, TIP + "\\Category\\Category\\" + category + "\\{1E7BDC4A-9862-43C6-AA16-8A40D96614E1}", view),
+                            f"Missing modern-host TSF capability {category} in view {view}")
             require(value(winreg.HKEY_LOCAL_MACHINE, UNINSTALL, "DisplayVersion") == VERSION,
                     "Missing Windows uninstall entry")
             for path, content in snapshots.items():

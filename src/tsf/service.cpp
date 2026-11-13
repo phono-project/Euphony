@@ -256,7 +256,10 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         worker_->requests.push_back(std::move(value)); worker_->wake.notify_one(); return true;
     }
     void hide() {
-        if (popup_) ShowWindow(popup_, SW_HIDE);
+        if (popup_ && IsWindowVisible(popup_)) {
+            NotifyWinEvent(EVENT_OBJECT_IME_HIDE,popup_,OBJID_CLIENT,CHILDID_SELF);
+            ShowWindow(popup_, SW_HIDE);
+        }
         caret_valid_=false; candidate_cells_.clear();
         if (ui_ && ui_id_ != TF_INVALID_COOKIE) { const auto id=std::exchange(ui_id_,TF_INVALID_COOKIE); ui_->EndUIElement(id); }
         candidates_.clear(); host_pages_.clear(); pending_=false;
@@ -339,6 +342,8 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         // GetTextExt may fail during relayout, or succeed with an empty rectangle.
         // Neither result may replace the last usable position with the origin.
         if (!view || FAILED(view->GetTextExt(cookie,range,&next,&clipped)) || next.bottom<=next.top || next.right<next.left) return false;
+        HWND owner{}; if (FAILED(view->GetWnd(&owner)) || !owner) owner=GetFocus();
+        if (popup_ && owner) SetWindowLongPtrW(popup_,GWLP_HWNDPARENT,reinterpret_cast<LONG_PTR>(owner));
         caret_=next; caret_valid_=true; return true;
     }
     bool snapshot(ITfContext* context, Json& value) {
@@ -602,9 +607,12 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             auto x=std::clamp(static_cast<int>(caret_.left),static_cast<int>(monitor.rcWork.left),static_cast<int>(monitor.rcWork.right-width));
             auto y=caret_.bottom+3;
             if (y+height>monitor.rcWork.bottom) y=std::max(monitor.rcWork.top,caret_.top-height-3);
+            const bool visible=IsWindowVisible(popup_)!=FALSE;
             SetWindowPos(popup_,HWND_TOPMOST,x,y,width,height,SWP_NOACTIVATE|SWP_SHOWWINDOW);
+            NotifyWinEvent(visible?EVENT_OBJECT_IME_CHANGE:EVENT_OBJECT_IME_SHOW,popup_,OBJID_CLIENT,CHILDID_SELF);
             InvalidateRect(popup_,nullptr,FALSE);
         } else if (popup_) {
+            if (IsWindowVisible(popup_)) NotifyWinEvent(EVENT_OBJECT_IME_HIDE,popup_,OBJID_CLIENT,CHILDID_SELF);
             ShowWindow(popup_,SW_HIDE);
         }
         if (pending_) SetTimer(dispatch_,kPollTimer,35,nullptr); else KillTimer(dispatch_,kPollTimer);
@@ -789,7 +797,6 @@ public:
     HRESULT STDMETHODCALLTYPE Activate(ITfThreadMgr* mgr,TfClientId client) override { return ActivateEx(mgr,client,0); }
     HRESULT STDMETHODCALLTYPE ActivateEx(ITfThreadMgr* mgr,TfClientId client,DWORD flags) override {
         if (!mgr || mgr_) return E_INVALIDARG;
-        if (flags&TF_TMAE_COMLESS) return E_NOTIMPL;
         mgr_=mgr; client_=client; activation_=flags; keyboard_focus_=true; profile_active_=false; rotate();
         BOOL foreground=FALSE; mgr_->IsThreadFocus(&foreground); focused_=foreground!=FALSE;
         ComPtr<ITfInputProcessorProfileMgr> profiles;
@@ -953,7 +960,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE OnLayoutChange(ITfContext* context,TfLayoutCode code,ITfContextView* view) override {
         if (context!=context_.Get()) return S_OK;
-        if (code==TF_LC_DESTROY) { caret_valid_=false; if (popup_) ShowWindow(popup_,SW_HIDE); return S_OK; }
+        if (code==TF_LC_DESTROY) { caret_valid_=false; if (popup_) { if (IsWindowVisible(popup_)) NotifyWinEvent(EVENT_OBJECT_IME_HIDE,popup_,OBJID_CLIENT,CHILDID_SELF); ShowWindow(popup_,SW_HIDE); } return S_OK; }
         if (!composition_ || !view) return S_OK;
         auto held=context_; ComPtr<ITfContextView> layout=view; const auto epoch=epoch_;
         edit(context,TF_ES_ASYNC|TF_ES_READ,[this,held,layout,epoch](TfEditCookie cookie) {

@@ -98,13 +98,17 @@ Pinyin and seven Shuangpin schemes are supported: Xiaohe, Natural Code, Microsof
 
 The bundled English dictionary contains 370,105 words and starts matching after 4 letters by default. Exact words rank first, followed by frequency-ranked completions, with a pale yellow background. Its path, minimum length and placement before/after model candidates are under collapsed default dictionary settings. User and English words default to before model candidates, in that order on either side. Duplicate provenance defaults to model, user, then English.
 
+Euphony 注册现代 Windows 宿主与 COM-less 激活能力，支持 Windows Terminal 的输入法选择。更新后需通过安装包或现有 Install 命令重新注册输入法，并重开 Terminal。
+
+Euphony registers modern-host and COM-less capabilities so it can be selected in Windows Terminal. Updating requires registering the input method again through the installer or the existing Install command, then reopening Terminal.
+
 控制台等短生命周期 TSF 文档不读取上下文，也不累积提交历史；仍可生成无上下文候选。可选上下文读取失败时不阻断输入。
 
 Transitory TSF documents, including console hosts, use candidates without surrounding text or accumulated commit history. Failure to read optional context does not block input.
 
 ## 常用设置 / Settings
 
-单击托盘图标打开设置；右键菜单提供方案、候选数、排列和常用开关。设置在下一轮输入生效。默认每页 5 个候选，纵向排列，模型候选使用淡绿色背景；可在设置中调整。应用若使用自己的候选界面，其显示样式由应用控制。
+单击托盘图标打开设置；右键菜单提供方案、候选数、排列和常用开关。每个可编辑项提供「恢复默认」按钮，仅重置该项，点击「保存设置」后生效。设置在下一轮输入生效。默认每页 5 个候选，纵向排列，模型候选使用淡绿色背景；可在设置中调整。应用若使用自己的候选界面，其显示样式由应用控制。
 
 Click the tray icon to open settings. Its context menu provides schemes, candidate count, layout, and common switches. Changes apply to the next composition. Defaults are five candidates per page, vertical layout, and a pale green background for model candidates; these can be adjusted in settings. Applications that provide their own candidate UI control its appearance.
 

@@ -140,3 +140,17 @@ After installation, check real applications: type `ni` and `nihao` in an empty f
 三个项目独立版本，core 更新通过普通依赖提交验证。若未来自动创建 Release，应将构建和上传留在同一工作流，不依赖跨仓库连锁发布。
 
 The three projects have independent versions, and core updates are validated through normal dependency commits. If Release creation is later automated, keep building and uploading in the same workflow without relying on chained cross-repository releases.
+
+## Windows Terminal compatibility
+
+Registration includes `GUID_TFCAT_TIPCAP_COMLESS` and
+`GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT`; the installation check verifies both
+capabilities in both registry views. `ActivateEx` accepts COM-less activation.
+The native TSF smoke test covers a context-owner console host with no
+`ITextStoreACP`: preedit is read through the composing property, and committed
+text is removed from the transient document by the host, as in Terminal.
+
+When verifying an upgrade manually, run the installer or the existing `Install`
+command to refresh capability registration, reopen Terminal, select Euphony,
+and check pinyin, candidate selection and Chinese output. Copying only the DLL
+without registration leaves the old capability list in effect.
