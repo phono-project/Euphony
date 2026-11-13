@@ -82,11 +82,11 @@ function Update-ResourcePaths {
     if (-not (Test-Path -LiteralPath $preferences)) { return }
     $current=[IO.File]::ReadAllText($preferences)|ConvertFrom-Json
     $changed=$false
-    foreach ($entry in @(@('core_library','phono_core.dll'),@('dictionary_path','data/libime.tsv'),@('language_model_path','data/zh_CN.lm'))) {
+    foreach ($entry in @(@('dictionary_path','data/libime.tsv'),@('language_model_path','data/zh_CN.lm'))) {
         $key=$entry[0]; $prior=[string]$current.$key
         if (-not $prior) { continue }
         $owner=Split-Path $prior -Parent
-        if ($key -ne 'core_library') { $owner=Split-Path $owner -Parent }
+        $owner=Split-Path $owner -Parent
         $managed=Test-Path -LiteralPath (Join-Path $owner 'EuphonyBroker.exe') -PathType Leaf
         if ($managed -and ([IO.Path]::GetFileName($prior) -eq [IO.Path]::GetFileName($entry[1]))) {
             $next=Join-Path $InstallDirectory $entry[1]
@@ -145,7 +145,7 @@ function Show-Status {
         $running=Get-Process -Id $reply.pid -ErrorAction Stop
         try { Write-Host "Broker PID $($reply.pid): $($running.Path)" } finally { $running.Dispose() }
         Write-Host "Broker version: $($reply.value.status.app_version)"
-        foreach ($key in @('core_library','dictionary_path','language_model_path','model_directory')) { Write-Host "$key : $($reply.value.config.$key)" }
+        foreach ($key in @('dictionary_path','language_model_path','model_directory')) { Write-Host "$key : $($reply.value.config.$key)" }
     } else { Write-Host 'Broker: stopped' }
     Write-Host 'Applications with loaded Euphony TSF modules (reopen these after updating):'
     foreach ($process in Get-Process) {

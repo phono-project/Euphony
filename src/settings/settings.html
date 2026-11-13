@@ -227,11 +227,7 @@
               <div class="path-input"><input id="model-directory" data-key="model_directory" type="text" placeholder="选择 phonop2c_v2_2_base_w8a8_model 目录" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="model_directory">选择目录</button></div>
               <p class="hint">选择包含模型配置、权重和词表的完整模型包目录。</p>
             </div>
-            <div class="path-field">
-              <label for="core-library">phono-core 动态链接库</label>
-              <div class="path-input"><input id="core-library" data-key="core_library" type="text" placeholder="phono-core.dll" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="core_library">选择文件</button></div>
-              <p class="hint">输入服务动态加载此 DLL，其依赖需要随库一起部署。</p>
-            </div>
+            <details><summary>默认词典配置</summary>
             <div class="path-field">
               <label for="dictionary-path">libime 来源词库</label>
               <div class="path-input"><input id="dictionary-path" data-key="dictionary_path" type="text" placeholder="libime.tsv" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="dictionary_path">选择文件</button></div>
@@ -244,6 +240,7 @@
               <div class="status-value"><span id="language-model-dot" class="dot"></span><span id="language-model-status">等待检查 KenLM</span></div>
               <p id="language-model-detail" class="status-detail">读取语言模型状态…</p>
             </div>
+            </details>
             <p class="notice">保存后输入服务会重新加载相关资源。加载失败时，具体原因会显示在这里。</p>
           </section>
           <section id="privacy">
@@ -310,7 +307,7 @@
     const native = window.chrome && window.chrome.webview;
     let serial = 0, saved = null, busy = false, dirty = false;
     const defaults = {
-      model_directory:'', core_library:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
+      model_directory:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
       theme:'system', background_color:'#FAFBFF', selected_candidate_color:'#E2EAFF', dark_background_color:'#282828', dark_selected_candidate_color:'#183B66', dark_model_candidate_color:'#204532', dark_user_candidate_color:'#442D50', show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
       prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true,
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,

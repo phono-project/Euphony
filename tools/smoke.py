@@ -184,8 +184,7 @@ def main():
             return
         configured = call(pipe, {"op": "set_config", "config": {
             "model_enabled": True,
-            "model_directory": str(args.model_dir.resolve()),
-            "core_library": str(core)}})
+            "model_directory": str(args.model_dir.resolve())}})
         assert configured["ok"], configured
         result = type_text("nihao", session="model")
         deadline = time.monotonic() + 30

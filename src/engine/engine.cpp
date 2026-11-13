@@ -84,8 +84,8 @@ struct Engine::Impl {
             }
         } catch (const std::exception& error) { languageModelError = error.what(); }
         if (config.value("model_enabled", true)) {
-            if (config.value("model_directory", "").empty() || config.value("core_library", "").empty())
-                modelError = "Set the local phono-core library and model package directory in Euphony settings";
+            if (config.value("model_directory", "").empty())
+                modelError = "Set the model package directory in Euphony settings";
             else {
                 Request warmup; warmup.settings = coreSettings();
                 const auto cancellation = warmup.cancelled;
@@ -105,7 +105,7 @@ struct Engine::Impl {
     Settings coreSettings() const {
         auto engine = config.value("engine", json{{"schema_version", "1.0"}});
         engine["tokenizer"]["use_segmenter"] = config.value("input_mode", "pinyin") == "pinyin";
-        return {config.value("model_directory", ""), config.value("core_library", ""), engine.dump(),
+        return {config.value("model_directory", ""), utf8((module_directory() / L"phono_core.dll").wstring()), engine.dump(),
             config.value("context", json{{"schema_version", "1.0"}}).dump(), config.value("context_slots", 4)};
     }
     int pageSize() const { return std::clamp(config.value("page_size", 5), 3, 10); }
@@ -350,7 +350,7 @@ struct Engine::Impl {
         const auto maxChars = config.value("engine", json::object()).value("tokenizer", json::object()).value("max_pinyin_chars", 128);
         if (!infer || unigramOnly || !config.value("model_enabled", true) || state.raw.empty() || state.sensitive ||
             !state.selected.empty() || state.cursor != state.raw.size() || state.raw.size() > static_cast<size_t>(maxChars)) return;
-        if (config.value("model_directory", "").empty() || config.value("core_library", "").empty()) { state.error = modelError; return; }
+        if (config.value("model_directory", "").empty()) { state.error = modelError; return; }
         Request request;
         request.contextId = state.id; request.pinyin = state.raw; request.history = state.history;
         request.settings = coreSettings();

@@ -18,9 +18,8 @@ void choice(const nlohmann::json& c, const char* key, const std::set<std::string
 }
 nlohmann::json default_config() {
     const auto bin = module_directory();
-    std::filesystem::path core = bin / L"phono_core.dll";
     std::filesystem::path model;
-    return {{"schema_version", 1}, {"model_directory", path_string(model)}, {"core_library", path_string(core)},
+    return {{"schema_version", 1}, {"model_directory", path_string(model)},
         {"dictionary_path", path_string(bin / L"data/libime.tsv")}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
         {"prefer_unigram_single_syllable", true}, {"user_words_exact_only", true}, {"user_words_enabled", true}, {"user_words_first", true},
         {"input_mode", "pinyin"}, {"shuangpin_scheme", "xiaohe"},
@@ -34,7 +33,7 @@ nlohmann::json default_config() {
 }
 void validate_config(const nlohmann::json& c) {
     if (!c.is_object() || c.value("schema_version", 0) != 1) throw std::runtime_error("Unsupported configuration version");
-    for (const char* key : {"model_directory", "core_library", "dictionary_path", "language_model_path", "user_directory"}) {
+    for (const char* key : {"model_directory", "dictionary_path", "language_model_path", "user_directory"}) {
         if (!c.contains(key) || !c[key].is_string()) throw std::runtime_error(std::string(key) + " must be a string");
         const auto value = c[key].get<std::string>();
         if (value.find('\0') != std::string::npos || value.size() > 32767) throw std::runtime_error("Invalid path");
@@ -83,6 +82,7 @@ ConfigStore::ConfigStore() : value_(default_config()) {
             stream >> stored;
             auto merged = value_;
             merged.merge_patch(stored);
+            merged.erase("core_library");
             merged["user_directory"] = path_string(user_directory());
             validate_config(merged);
             value_ = std::move(merged);
@@ -99,6 +99,7 @@ nlohmann::json ConfigStore::prepare(const nlohmann::json& input) const {
     if (!input.is_object()) throw std::runtime_error("Configuration must be an object");
     auto next = value_;
     next.merge_patch(input);
+    next.erase("core_library");
     next["user_directory"] = path_string(user_directory());
     validate_config(next);
     return next;

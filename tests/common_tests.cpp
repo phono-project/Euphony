@@ -12,6 +12,7 @@ int main() {
         if (!invalid) throw std::runtime_error("Invalid UTF8 accepted");
         auto config = euphony::default_config();
         euphony::validate_config(config);
+        if (config.contains("core_library")) throw std::runtime_error("Core library must not be configurable");
         if (config["full_width_digits"]!=false || config["full_width_symbols"]!=false) throw std::runtime_error("Digits and functional symbols must default to half-width");
         if (config["theme"] != "system" || config["dark_background_color"] != "#282828") throw std::runtime_error("Theme defaults incorrect");
         if (config["show_preedit"] != false) throw std::runtime_error("Preedit must default to hidden");
@@ -40,6 +41,9 @@ int main() {
           if (content != "{broken") throw std::runtime_error("Recovery overwrote the damaged config"); }
         auto edited = recovered.prepare({{"full_width_digits", true}, {"full_width_symbols", true}, {"dark_background_color", "#202020"}, {"theme", "dark"}, {"show_preedit", true}, {"page_size", 4}, {"candidate_layout", "horizontal"}, {"prefer_unigram_single_syllable", false},
             {"user_words_exact_only", false}, {"user_words_enabled", false}, {"user_words_first", false}, {"context", {{"max_context_length", 128}}}});
+        edited["core_library"] = "C:/obsolete.dll";
+        edited = recovered.prepare(edited);
+        if (edited.contains("core_library")) throw std::runtime_error("Legacy core path was retained");
         recovered.save(edited);
         edited = recovered.prepare({{"context", {{"max_context_length", nullptr}}}});
         if (edited["context"].contains("max_context_length")) throw std::runtime_error("Automatic window did not clear explicit override");

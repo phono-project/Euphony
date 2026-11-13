@@ -188,7 +188,7 @@ int main() {
             check(truncated.lookup("ni")[0].text=="你","LM ranks before the candidate limit is applied");
             auto routeConfig=config;
             routeConfig["language_model_path"]=arpa.string();routeConfig["model_enabled"]=true;
-            routeConfig["core_library"]="C:/euphony-test-missing-core.dll";routeConfig["model_directory"]=temp.string();
+            routeConfig["model_directory"]=temp.string();
             routeConfig["user_directory"]="";
             Engine routed(routeConfig);Client routing{routed,"routing"};
             auto status=routed.handle({{"op","status"}});
@@ -261,7 +261,7 @@ int main() {
             }
             Dictionary restored(fixture);restored.loadLearning(directory/"learning.json");
             check(restored.frequency("ni'hao'ma","倪好嘛")==2,"whole phrase count persists");
-            memoryConfig["model_enabled"]=true;memoryConfig["model_directory"]=temp.string();memoryConfig["core_library"]="test-inference";
+            memoryConfig["model_enabled"]=true;memoryConfig["model_directory"]=temp.string();
             {
                 Engine engine(memoryConfig,[](const Request&) {Result result;result.ready=true;result.candidates={"你好嘛","倪好嘛"};return result;});
                 Client client{engine,"memory-model"};auto answer=client.type("nihaoma");
@@ -290,7 +290,7 @@ int main() {
         }
         for(const auto& interaction:std::vector<std::string>{"Select","Space","Highlight"}) {
             auto raceConfig=config;raceConfig["model_enabled"]=true;
-            raceConfig["core_library"]="test-inference";raceConfig["model_directory"]=temp.string();
+            raceConfig["model_directory"]=temp.string();
             raceConfig["user_directory"]="";
             std::atomic_bool release=false;
             Engine engine(raceConfig,[&](const Request& request) {
@@ -345,7 +345,7 @@ int main() {
             Dictionary personal(fixture);personal.learn("ni'hao'ma","倪好嘛");personal.saveLearning(directory/"learning.json");
             auto settings=config;settings["user_directory"]=directory.string();settings["input_mode"]=mode;
             settings["user_words_enabled"]=enabled;settings["user_words_first"]=first;settings["learning"]=false;
-            settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["core_library"]="test-inference";
+            settings["model_enabled"]=true;settings["model_directory"]=temp.string();
             {
                 Engine engine(settings,[](const Request&) {Result result;result.ready=true;result.candidates={"模型整句"};return result;});
                 Client client{engine,"user-options"};auto answer=client.type(std::string(mode)=="pinyin" ? "nihaoma" : "nihcma");
@@ -374,7 +374,7 @@ int main() {
             Dictionary personal(fixture);personal.learn("ni'hao","倪好");personal.saveLearning(directory/"learning.json");
             auto settings=config;settings["user_directory"]=directory.string();settings["input_mode"]=mode;
             settings["user_words_exact_only"]=exactOnly;
-            settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["core_library"]="test-inference";
+            settings["model_enabled"]=true;settings["model_directory"]=temp.string();
             Engine engine(settings,[](const Request&) {Result result;result.ready=true;result.candidates={"模型整句"};return result;});
             Client client{engine,"exact-memory"};
             for (int kind : {0,1,2}) {
@@ -395,7 +395,7 @@ int main() {
             Dictionary personal(fixture);personal.learn("ni","倪");personal.saveLearning(directory/"learning.json");
             auto settings=config;settings["user_directory"]=directory.string();settings["input_mode"]=mode;
             settings["user_words_exact_only"]=false;
-            settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["core_library"]="test-inference";
+            settings["model_enabled"]=true;settings["model_directory"]=temp.string();
             Engine engine(settings,[](const Request&) {Result result;result.ready=true;result.candidates={"模型整句"};return result;});
             Client client{engine,"single-memory"};auto answer=client.type(std::string(mode)=="pinyin" ? "nihaoma" : "nihcma");
             check(answer["candidates"][0]["text"]!="倪","single memory does not lead before inference");
