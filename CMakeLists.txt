@@ -85,7 +85,8 @@ else()
         "$<TARGET_FILE:phono::core>" "$<TARGET_FILE_DIR:EuphonyBroker>/phono_core.dll")
     add_custom_command(TARGET EuphonyBroker POST_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory
         "$<TARGET_FILE_DIR:EuphonyBroker>/data" COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/data/libime.tsv" "$<TARGET_FILE_DIR:EuphonyBroker>/data/libime.tsv")
+        "${CMAKE_CURRENT_SOURCE_DIR}/data/libime.tsv" "$<TARGET_FILE_DIR:EuphonyBroker>/data/libime.tsv"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/data/english.tsv" "$<TARGET_FILE_DIR:EuphonyBroker>/data/english.tsv")
     add_custom_command(TARGET EuphonyBroker POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/data/zh_CN.lm" "$<TARGET_FILE_DIR:EuphonyBroker>/data/zh_CN.lm")
     install(TARGETS EuphonyTsf EuphonyBroker EuphonySettings RUNTIME DESTINATION . LIBRARY DESTINATION .)
@@ -94,7 +95,7 @@ else()
     install(DIRECTORY "${PHONO_CORE_SDK_DIR}/share/licenses/phono-core/" DESTINATION licenses/phono-core)
     install(FILES "${PHONO_CORE_SDK_DIR}/share/phono-core/VERSION" DESTINATION licenses/phono-core)
     install(FILES "${PHONO_CORE_SDK_DIR}/share/phono-core/build-info.json" DESTINATION licenses/phono-core OPTIONAL)
-    install(FILES data/libime.tsv data/zh_CN.lm DESTINATION data)
+    install(FILES data/libime.tsv data/english.tsv data/zh_CN.lm DESTINATION data)
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.deps/vcpkg-installed/x64-windows-static/share/" DESTINATION licenses/vcpkg
         FILES_MATCHING PATTERN copyright)
     install(FILES data/README.md DESTINATION data)

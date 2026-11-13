@@ -11,6 +11,37 @@
 #include <windows.h>
 
 namespace euphony {
+EnglishDictionary::EnglishDictionary(const std::filesystem::path& path) {
+    std::ifstream stream(path);
+    if (!stream) throw std::runtime_error("Cannot open English dictionary");
+    std::string line;
+    while (std::getline(stream,line)) {
+        std::istringstream row(line);
+        Word word;
+        if (!(row >> word.text >> word.frequency) || word.text.empty() ||
+            word.text.find_first_not_of("abcdefghijklmnopqrstuvwxyz") != std::string::npos) continue;
+        words_.push_back(std::move(word));
+    }
+    if (words_.empty()) throw std::runtime_error("English dictionary is empty");
+    std::stable_sort(words_.begin(),words_.end(),[](const auto& a,const auto& b) { return a.text < b.text; });
+    words_.erase(std::unique(words_.begin(),words_.end(),[](const auto& a,const auto& b) { return a.text==b.text; }),words_.end());
+}
+std::vector<std::string> EnglishDictionary::lookup(std::string_view prefix,size_t limit) const {
+    if (prefix.empty() || prefix.find_first_not_of("abcdefghijklmnopqrstuvwxyz")!=prefix.npos || !limit) return {};
+    auto first=std::lower_bound(words_.begin(),words_.end(),prefix,[](const auto& word,std::string_view key) { return word.text<key; });
+    std::vector<const Word*> matches;
+    for (auto it=first;it!=words_.end() && it->text.starts_with(prefix);++it) matches.push_back(&*it);
+    auto rank=[&](const Word* a,const Word* b) {
+        if ((a->text==prefix)!=(b->text==prefix)) return a->text==prefix;
+        if (a->frequency!=b->frequency) return a->frequency>b->frequency;
+        return a->text<b->text;
+    };
+    const auto count=std::min(limit,matches.size());
+    std::partial_sort(matches.begin(),matches.begin()+count,matches.end(),rank);
+    std::vector<std::string> result;
+    for (size_t i=0;i<count;++i) result.push_back(matches[i]->text);
+    return result;
+}
 std::vector<std::string> splitPinyin(std::string_view text) {
     std::vector<std::string> result;
     for (size_t start = 0; start < text.size();) {

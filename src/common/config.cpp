@@ -20,7 +20,10 @@ nlohmann::json default_config() {
     const auto bin = module_directory();
     std::filesystem::path model;
     return {{"schema_version", 1}, {"model_directory", path_string(model)},
-        {"dictionary_path", path_string(bin / L"data/libime.tsv")}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
+        {"dictionary_path", path_string(bin / L"data/libime.tsv")},
+        {"english_dictionary_path", path_string(bin / L"data/english.tsv")}, {"english_min_letters",4}, {"english_words_first",true},
+        {"candidate_source_priority", {"model","user","english"}},
+        {"english_candidate_color","#FFF2C6"}, {"dark_english_candidate_color","#514627"}, {"language_model_path", path_string(bin / L"data/zh_CN.lm")},
         {"prefer_unigram_single_syllable", true}, {"user_words_exact_only", true}, {"user_words_enabled", true}, {"user_words_first", true},
         {"input_mode", "pinyin"}, {"shuangpin_scheme", "xiaohe"},
         {"theme", "system"}, {"background_color", "#FAFBFF"}, {"selected_candidate_color", "#607EB9"}, {"dark_background_color", "#282828"}, {"dark_selected_candidate_color", "#88ACF0"}, {"dark_model_candidate_color", "#204532"}, {"dark_user_candidate_color", "#442D50"}, {"show_preedit", false}, {"page_size", 5}, {"candidate_layout", "vertical"}, {"model_candidate_color", "#DFF2E5"}, {"user_candidate_color", "#FBE4EC"}, {"model_enabled", true}, {"use_surrounding", true}, {"history_characters", 256},
@@ -33,21 +36,30 @@ nlohmann::json default_config() {
 }
 void validate_config(const nlohmann::json& c) {
     if (!c.is_object() || c.value("schema_version", 0) != 1) throw std::runtime_error("Unsupported configuration version");
-    for (const char* key : {"model_directory", "dictionary_path", "language_model_path", "user_directory"}) {
+    for (const char* key : {"model_directory", "dictionary_path", "english_dictionary_path", "language_model_path", "user_directory"}) {
         if (!c.contains(key) || !c[key].is_string()) throw std::runtime_error(std::string(key) + " must be a string");
         const auto value = c[key].get<std::string>();
         if (value.find('\0') != std::string::npos || value.size() > 32767) throw std::runtime_error("Invalid path");
         if (!value.empty() && !std::filesystem::path(wide(value)).is_absolute()) throw std::runtime_error(std::string(key) + " must be absolute");
     }
-    for (const char* key : {"model_enabled", "use_surrounding", "learning", "chinese_punctuation", "full_width", "full_width_digits", "full_width_symbols", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "show_preedit"})
+    for (const char* key : {"model_enabled", "use_surrounding", "learning", "chinese_punctuation", "full_width", "full_width_digits", "full_width_symbols", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "english_words_first", "show_preedit"})
         if (!c.contains(key) || !c[key].is_boolean()) throw std::runtime_error(std::string(key) + " must be boolean");
+    if (!c.contains("candidate_source_priority") || !c["candidate_source_priority"].is_array() || c["candidate_source_priority"].size()!=3)
+        throw std::runtime_error("Invalid candidate source priority");
+    std::set<std::string> sources;
+    for (const auto& source:c["candidate_source_priority"]) {
+        if (!source.is_string()) throw std::runtime_error("Invalid candidate source priority");
+        sources.insert(source.get<std::string>());
+    }
+    if (sources!=std::set<std::string>{"model","user","english"}) throw std::runtime_error("Invalid candidate source priority");
+    integer(c, "english_min_letters", 1, 128);
     integer(c, "page_size", 3, 10);
     integer(c, "history_characters", 0, 8192);
     integer(c, "context_slots", 1, 32);
     choice(c, "input_mode", {"pinyin", "shuangpin"});
     choice(c, "theme", {"system", "light", "dark"});
     choice(c, "candidate_layout", {"vertical", "horizontal"});
-    for (const auto* key : {"model_candidate_color", "user_candidate_color", "background_color", "selected_candidate_color", "dark_background_color", "dark_selected_candidate_color", "dark_model_candidate_color", "dark_user_candidate_color"}) {
+    for (const auto* key : {"english_candidate_color", "dark_english_candidate_color", "model_candidate_color", "user_candidate_color", "background_color", "selected_candidate_color", "dark_background_color", "dark_selected_candidate_color", "dark_model_candidate_color", "dark_user_candidate_color"}) {
         if (!c.contains(key) || !c[key].is_string()) throw std::runtime_error("Candidate color must be #RRGGBB");
         const auto color=c[key].get<std::string>();
         if (color.size()!=7 || color[0]!='#' || color.find_first_not_of("0123456789abcdefABCDEF",1)!=std::string::npos)

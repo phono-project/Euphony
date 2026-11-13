@@ -19,7 +19,7 @@ foreach ($view in @([Microsoft.Win32.RegistryView]::Registry64,[Microsoft.Win32.
 $preferences=Join-Path $env:LOCALAPPDATA 'Euphony/config.json'
 if (Test-Path -LiteralPath $preferences) {
     $config=[IO.File]::ReadAllText($preferences)|ConvertFrom-Json
-    foreach ($name in @('dictionary_path','language_model_path','model_directory')) { if ($config.$name) { $references.Add([string]$config.$name) } }
+    foreach ($name in @('dictionary_path','english_dictionary_path','language_model_path','model_directory')) { if ($config.$name) { $references.Add([string]$config.$name) } }
 }
 $targets=@('build-release','build-release-x86','build-x86','tools/__pycache__',
     'build/test-results/smoke-package.json','build/test-results/temporary-registration','build/test-results/temporary-smoke','build/test-results/temporary-tray',

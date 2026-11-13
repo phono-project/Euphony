@@ -82,7 +82,7 @@ function Update-ResourcePaths {
     if (-not (Test-Path -LiteralPath $preferences)) { return }
     $current=[IO.File]::ReadAllText($preferences)|ConvertFrom-Json
     $changed=$false
-    foreach ($entry in @(@('dictionary_path','data/libime.tsv'),@('language_model_path','data/zh_CN.lm'))) {
+    foreach ($entry in @(@('dictionary_path','data/libime.tsv'),@('english_dictionary_path','data/english.tsv'),@('language_model_path','data/zh_CN.lm'))) {
         $key=$entry[0]; $prior=[string]$current.$key
         if (-not $prior) { continue }
         $owner=Split-Path $prior -Parent

@@ -223,7 +223,11 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                         store->layout_state=1;
                         check(keys->OnKeyDown(context.Get(),'N',0,&eaten),"Popup composition start failed");
                         check(keys->OnKeyDown(context.Get(),'I',0,&eaten),"Popup composition key failed");
-                        pump_until([&] { candidates->GetCount(&count); return store->text==L"ni" && count>=5; },8000,"Popup candidates unavailable");
+                        try {
+                            pump_until([&] { candidates->GetCount(&count); return store->text==L"ni" && count>=5; },8000,"Popup candidates unavailable");
+                        } catch (const std::exception&) {
+                            throw std::runtime_error(std::string("Popup candidates unavailable: ")+theme+" / "+layout+"; text="+euphony::utf8(store->text)+"; candidates="+std::to_string(count));
+                        }
                         check(candidates->Show(TRUE),"Popup show request failed");
                         if (IsWindowVisible(popup)) throw std::runtime_error("Popup shown before any valid layout");
                         store->publish_layout(0);
@@ -263,13 +267,32 @@ void integration(ITfTextInputProcessorEx* service,ITfKeyEventSink* keys,ITfCandi
                         while (next_x<client_rect.right && GetPixel(pixels,next_x,first_y+1)==selected_color) ++next_x;
                         while (next_y<client_rect.bottom && GetPixel(pixels,5,next_y)==selected_color) ++next_y;
                         ReleaseDC(popup,pixels);
-                        if (first_y>=client_rect.bottom) throw std::runtime_error("Selected candidate theme background missing");
+                        if (first_y>=client_rect.bottom) throw std::runtime_error("Selected candidate theme border missing");
                         BSTR chosen{}; check(candidates->GetString(1,&chosen),"Mouse target unavailable");
                         std::wstring expected_click(chosen,SysStringLen(chosen)); SysFreeString(chosen);
                         const auto x=std::string_view(layout)=="horizontal"?next_x+8:14;
                         const auto y=std::string_view(layout)=="horizontal"?first_y+8:next_y+8;
                         SendMessageW(popup,WM_LBUTTONUP,0,MAKELPARAM(x,y));
                         pump_until([&] { return store->text==expected_click && !IsWindowVisible(popup); },5000,"Candidate click selected the wrong item for its layout");
+                        store->clear();
+                        broker.call({{"version",1},{"op","set_config"},{"config",{{"english_words_first",true},{"english_min_letters",4}}}});
+                        for (const auto key:std::wstring_view(L"HELLO")) check(keys->OnKeyDown(context.Get(),key,0,&eaten),"English candidate input failed");
+                        pump_until([&] { return store->text==L"hello"; },5000,"English candidate preedit unavailable");
+                        store->publish_layout(0);
+                        pump_until([&] { return IsWindowVisible(popup)!=FALSE; },5000,"English candidate popup unavailable");
+                        UpdateWindow(popup);
+                        BSTR english{}; check(candidates->GetString(0,&english),"English first candidate unavailable");
+                        const bool englishFirst=std::wstring_view(english,SysStringLen(english))==L"hello"; SysFreeString(english);
+                        if (!englishFirst) throw std::runtime_error("English candidate was not placed before native candidates");
+                        pixels=GetDC(popup);
+                        const auto english_color=std::string_view(theme)=="dark"?RGB(81,70,39):RGB(255,242,198);
+                        const bool sourcePreserved=GetPixel(pixels,8,first_y+8)==english_color;
+                        const bool thickBorder=GetPixel(pixels,5,first_y+8)==selected_color;
+                        ReleaseDC(popup,pixels);
+                        if (!sourcePreserved || !thickBorder) throw std::runtime_error("English selection must preserve source fill inside a thick border");
+                        snapshot_popup(popup,std::string_view(theme)=="dark"?L"english-dark.bmp":L"english-light.bmp");
+                        check(keys->OnKeyDown(context.Get(),VK_SPACE,0,&eaten),"English candidate commit failed");
+                        pump_until([&] { return store->text==L"hello" && !IsWindowVisible(popup); },5000,"English candidate did not finish composition");
                         store->clear();
                     }
                     if (misplaced_popup) throw std::runtime_error("Candidate popup moved through the screen origin");

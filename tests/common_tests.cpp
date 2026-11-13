@@ -13,6 +13,7 @@ int main() {
         auto config = euphony::default_config();
         euphony::validate_config(config);
         if (config.contains("core_library")) throw std::runtime_error("Core library must not be configurable");
+        if (config["english_min_letters"]!=4 || config["english_words_first"]!=true || config["english_candidate_color"]!="#FFF2C6") throw std::runtime_error("English defaults incorrect");
         if (config["full_width_digits"]!=false || config["full_width_symbols"]!=false) throw std::runtime_error("Digits and functional symbols must default to half-width");
         if (config["theme"] != "system" || config["dark_background_color"] != "#282828") throw std::runtime_error("Theme defaults incorrect");
         if (config["show_preedit"] != false) throw std::runtime_error("Preedit must default to hidden");
@@ -21,7 +22,7 @@ int main() {
         if (config["prefer_unigram_single_syllable"] != true) throw std::runtime_error("Single-syllable unigram default is not enabled");
         if (config["user_words_exact_only"] != true) throw std::runtime_error("Exact-match user priority default is not enabled");
         if (config["user_words_enabled"] != true || config["user_words_first"] != true) throw std::runtime_error("User-word defaults are not enabled");
-        for (const auto& patch : {nlohmann::json{{"full_width_digits", "true"}}, nlohmann::json{{"full_width_symbols", 1}}, nlohmann::json{{"theme", "unknown"}}, nlohmann::json{{"show_preedit", "true"}}, nlohmann::json{{"dark_background_color", "gray"}}, nlohmann::json{{"page_size", 0}}, nlohmann::json{{"context_slots", 33}},
+        for (const auto& patch : {nlohmann::json{{"full_width_digits", "true"}}, nlohmann::json{{"full_width_symbols", 1}}, nlohmann::json{{"theme", "unknown"}}, nlohmann::json{{"show_preedit", "true"}}, nlohmann::json{{"dark_background_color", "gray"}}, nlohmann::json{{"page_size", 0}}, nlohmann::json{{"english_min_letters", 0}}, nlohmann::json{{"english_words_first", "true"}}, nlohmann::json{{"english_dictionary_path", "relative.tsv"}}, nlohmann::json{{"candidate_source_priority", {"model","model","english"}}}, nlohmann::json{{"context_slots", 33}},
              nlohmann::json{{"input_mode", "unknown"}}, nlohmann::json{{"candidate_layout", "diagonal"}}, nlohmann::json{{"model_candidate_color", "#GG0000"}}, nlohmann::json{{"user_candidate_color", "red"}}, nlohmann::json{{"model_directory", "relative/path"}},
              nlohmann::json{{"language_model_path", "relative.lm"}}, nlohmann::json{{"prefer_unigram_single_syllable", "true"}}, nlohmann::json{{"user_words_exact_only", "true"}},
              nlohmann::json{{"user_words_enabled", "true"}}, nlohmann::json{{"user_words_first", "true"}}}) {

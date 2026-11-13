@@ -18,9 +18,9 @@ Administrator privileges are required; approve elevation under the Windows accou
 
 To update, run the new installer over the existing directory. To uninstall, exit settings and the tray, remove Euphony through Windows Installed apps, then restart to unload TSF DLLs. Preferences, learned vocabulary, and separately downloaded models are retained.
 
-从便携版切换时，先按下方便携版步骤卸载注册、注销再登录，再运行安装包。若旧配置中的 core、词库或 KenLM 路径指向便携目录，请在设置中改为新安装目录内的 `phono_core.dll`、`data/libime.tsv` 和 `data/zh_CN.lm`，再删除旧目录。
+从便携版切换时，先按下方便携版步骤卸载注册、注销再登录，再运行安装包。phono-core 始终使用当前安装目录中的自带版本。若旧配置中的词库或 KenLM 路径指向便携目录，请在「默认词典配置」中改为新安装目录内的 `data/libime.tsv` 和 `data/zh_CN.lm`，再删除旧目录。
 
-To switch from portable, unregister it using the removal steps below, sign out and back in, then run the installer. If saved core, dictionary, or KenLM paths point to the portable directory, change them in Settings to `phono_core.dll`, `data/libime.tsv`, and `data/zh_CN.lm` in the new installation before deleting the old directory.
+To switch from portable, unregister it using the removal steps below, sign out and back in, then run the installer. phono-core always loads from the current installation. If saved dictionary or KenLM paths point to the portable directory, change them under the collapsed default dictionary settings to `data/libime.tsv` and `data/zh_CN.lm` in the new installation before deleting the old directory.
 
 ## Portable 包安装 / Portable package installation
 
@@ -91,8 +91,16 @@ Pinyin and seven Shuangpin schemes are supported: Xiaohe, Natural Code, Microsof
 | ← / →、Home / End | 编辑拼音光标 / Move the pinyin cursor |
 | Backspace / Delete | 删除或退回逐词选择 / Delete or return to word selection |
 | Enter / Escape | 提交 / 取消 / Commit / Cancel |
-| 单独 Shift 或 Ctrl+Space / Shift alone or Ctrl+Space | 中英切换 / Toggle Chinese and English |
+| 单独 Shift 或 Ctrl+Space / Shift alone or Ctrl+Space | 中英切换，切换英文时提交原始输入 / Toggle Chinese and English; commit raw input when entering English |
 | Ctrl+, | 全半角切换 / Toggle full-width and half-width input |
+
+英文词典内置 370,105 个词条，默认从 4 个字母开始匹配；完整词优先，其余按词频排列，默认使用淡黄色背景。在折叠的「默认词典配置」中可调整词典路径、最短长度和英文词前置/后置。用户词与英文词都默认插入模型结果之前；同一侧按用户词、英文词的顺序加入。重复结果默认按模型、用户词、英文词确定来源。
+
+The bundled English dictionary contains 370,105 words and starts matching after 4 letters by default. Exact words rank first, followed by frequency-ranked completions, with a pale yellow background. Its path, minimum length and placement before/after model candidates are under collapsed default dictionary settings. User and English words default to before model candidates, in that order on either side. Duplicate provenance defaults to model, user, then English.
+
+控制台等短生命周期 TSF 文档不读取上下文，也不累积提交历史；仍可生成无上下文候选。可选上下文读取失败时不阻断输入。
+
+Transitory TSF documents, including console hosts, use candidates without surrounding text or accumulated commit history. Failure to read optional context does not block input.
 
 ## 常用设置 / Settings
 
@@ -181,7 +189,7 @@ This project uses [Apache License 2.0](LICENSE). Third-party material retains th
 
 ### 候选窗与回退分词
 
-候选窗的预编辑框默认隐藏，可在设置中开启。颜色模式支持遵循系统（默认）、亮色与暗色；两套配色独立保存，可分别调整背景、模型词、用户词和选定词颜色。暗色默认使用暗灰背景、暗绿模型词、暗紫用户词和深蓝选定词。
+候选窗的预编辑框默认隐藏，可在设置中开启。颜色模式支持遵循系统（默认）、亮色与暗色；两套配色独立保存，可分别调整背景、模型词、用户词、英文词和选定边框颜色。选择候选仅绘制加粗边框，保留其来源底色。暗色默认使用暗灰背景、暗绿模型词、暗紫用户词和暗黄英文词。
 
 字典回退对不超过 6 个字符的输入保留多种读法，并降低简拼和过度拆分路径的排序。更长输入通过动态规划优先选择完整音节较少的路径，末尾允许未完成音节；手动输入的分隔符会被保留。无法找到全拼路径时仍支持原有简拼回退。该策略参考 [libime 的拼音解析实现](https://github.com/fcitx/libime/blob/master/src/libime/pinyin/pinyinencoder.cpp)，不新增运行依赖。
 

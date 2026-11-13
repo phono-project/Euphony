@@ -227,7 +227,7 @@
               <div class="path-input"><input id="model-directory" data-key="model_directory" type="text" placeholder="选择 phonop2c_v2_2_base_w8a8_model 目录" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="model_directory">选择目录</button></div>
               <p class="hint">选择包含模型配置、权重和词表的完整模型包目录。</p>
             </div>
-            <details><summary>默认词典配置</summary>
+            <details id="default-dictionaries"><summary>默认词典配置</summary>
             <div class="path-field">
               <label for="dictionary-path">libime 来源词库</label>
               <div class="path-input"><input id="dictionary-path" data-key="dictionary_path" type="text" placeholder="libime.tsv" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="dictionary_path">选择文件</button></div>
@@ -240,6 +240,22 @@
               <div class="status-value"><span id="language-model-dot" class="dot"></span><span id="language-model-status">等待检查 KenLM</span></div>
               <p id="language-model-detail" class="status-detail">读取语言模型状态…</p>
             </div>
+            <div class="path-field">
+              <label for="english-dictionary-path">英文词典</label>
+              <div class="path-input"><input id="english-dictionary-path" data-key="english_dictionary_path" type="text" spellcheck="false" autocomplete="off"><button type="button" class="button small" data-pick="english_dictionary_path">选择文件</button></div>
+              <p class="hint">使用内置英文词表与词频；按输入前缀匹配，完整单词优先。清空路径可禁用。</p>
+              <p id="english-dictionary-detail" class="status-detail"></p>
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="english-min-letters">英文匹配最短长度</label><p>默认输入 4 个字母后开始匹配，拼音和双拼均使用原始字母。</p></div>
+              <input id="english-min-letters" data-key="english_min_letters" type="number" min="1" max="128" value="4">
+            </div>
+            <div class="row">
+              <div class="row-label"><label for="english-words-first">英文词前置</label><p>开启时插入模型结果之前，关闭后插入模型结果之后。同一侧先显示用户词，再显示英文词。</p></div>
+              <label class="toggle"><input id="english-words-first" data-key="english_words_first" type="checkbox" checked><span></span></label>
+            </div>
+            <div class="row"><div class="row-label"><label for="english-candidate-color">亮色英文词颜色</label></div><input id="english-candidate-color" data-key="english_candidate_color" type="color" value="#FFF2C6"></div>
+            <div class="row"><div class="row-label"><label for="dark-english-candidate-color">暗色英文词颜色</label></div><input id="dark-english-candidate-color" data-key="dark_english_candidate_color" type="color" value="#514627"></div>
             </details>
             <p class="notice">保存后输入服务会重新加载相关资源。加载失败时，具体原因会显示在这里。</p>
           </section>
@@ -309,7 +325,7 @@
     const defaults = {
       model_directory:'', dictionary_path:'', language_model_path:'data/zh_CN.lm', input_mode:'pinyin',
       theme:'system', background_color:'#FAFBFF', selected_candidate_color:'#607EB9', dark_background_color:'#282828', dark_selected_candidate_color:'#88ACF0', dark_model_candidate_color:'#204532', dark_user_candidate_color:'#442D50', show_preedit:false, shuangpin_scheme:'xiaohe', page_size:5, candidate_layout:'vertical', model_candidate_color:'#DFF2E5', user_candidate_color:'#FBE4EC', model_enabled:true, use_surrounding:true,
-      prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true,
+      prefer_unigram_single_syllable:true, user_words_exact_only:true, user_words_enabled:true, user_words_first:true, english_words_first:true, english_min_letters:4, english_dictionary_path:'', english_candidate_color:'#FFF2C6', dark_english_candidate_color:'#514627',
       history_characters:256, learning:true, invalid_input:'pass', context_slots:4,
       full_width:false, full_width_digits:false, full_width_symbols:false, chinese_punctuation:true,
       engine:{schema_version:'1.0', tokenizer:{use_segmenter:true, segment_mode:'safe', repair:false,
@@ -459,6 +475,7 @@
       $('model-detail').textContent = modelError || (config.model_directory ? config.model_directory.split(/[\\/]/).filter(Boolean).pop() : '尚未选择模型目录');
       $('dictionary-dot').className = 'dot ' + (dictionaryReady ? 'ready' : dictionaryError ? 'error' : 'warning');
       $('dictionary-status').textContent = dictionaryReady ? '词库已就绪' : dictionaryError ? '词库加载失败' : '词库尚未就绪';
+      $('english-dictionary-detail').textContent = status.english_dictionary_error || (status.english_dictionary_ready ? `英文词典已就绪 · ${status.english_dictionary_entries} 条` : '英文词典未启用');
       $('dictionary-detail').textContent = dictionaryError || (config.dictionary_path ? config.dictionary_path.split(/[\\/]/).pop() : '尚未选择系统词库');
       $('language-model-dot').className = 'dot ' + (languageModelReady ? 'ready' : languageModelError ? 'error' : config.language_model_path ? 'warning' : '');
       $('language-model-status').textContent = languageModelReady ? 'KenLM 已就绪' : !config.language_model_path ? '未配置 KenLM' : languageModelError ? 'KenLM 加载失败' : 'KenLM 尚未就绪';

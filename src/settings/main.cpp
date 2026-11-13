@@ -527,7 +527,7 @@ private:
             const fields = document.getElementById('fields');
             if (!fields || fields.disabled) return {ready:false};
             const ids = ['input-mode','shuangpin-scheme','page-size','candidate-layout','model-candidate-color','user-candidate-color','invalid-input','learning',
-                'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','user-words-enabled','user-words-first','model-directory','dictionary-path','language-model-path','use-surrounding',
+                'model-enabled','prefer-unigram-single-syllable','user-words-exact-only','user-words-enabled','user-words-first','model-directory','dictionary-path','language-model-path','english-dictionary-path','english-min-letters','english-words-first','english-candidate-color','dark-english-candidate-color','use-surrounding',
                 'history-characters','context-slots','chinese-punctuation','full-width','full-width-digits','full-width-symbols','lowercase-ascii','normalize-v','separators',
                 'max-pinyin-chars','max-context-length','max-history-length','max-pinyin-length',
                 'slack-interval','min-accept-context','trial-ratio','decay-alpha','decay-lambda'];
@@ -618,6 +618,13 @@ private:
                 language_model_picker:!!document.querySelector('[data-pick="language_model_path"]'),
                 reverted:document.getElementById('save').disabled,
                 model_directory:document.getElementById('model-directory').value,
+                dictionaries_collapsed:!document.getElementById('default-dictionaries').open,
+                core_picker_removed:!document.getElementById('core-library'),
+                english_dictionary_path:document.getElementById('english-dictionary-path').value,
+                english_min_letters:Number(document.getElementById('english-min-letters').value),
+                english_words_first:document.getElementById('english-words-first').checked,
+                english_candidate_color:document.getElementById('english-candidate-color').value.toUpperCase(),
+                dark_english_candidate_color:document.getElementById('dark-english-candidate-color').value.toUpperCase(),
                 dictionary_path:document.getElementById('dictionary-path').value,
                 language_model_path:languageModel.value,
                 prefer_unigram_single_syllable:unigram.checked,
@@ -658,10 +665,10 @@ private:
                             test_dom_.value("unigram_dirty_state", false) && test_dom_.value("language_model_dirty_state", false) &&
                             test_dom_.value("user_words_dirty_state", false) &&
                             test_dom_.value("layout_dirty_state", false) &&
-                            test_dom_.value("language_model_picker", false) &&
+                            test_dom_.value("language_model_picker", false) && test_dom_.value("dictionaries_collapsed", false) && test_dom_.value("core_picker_removed", false) &&
                             test_dom_.value("scheme_toggle", false) && test_dom_.value("validation", false) &&
                             test_dom_.value("reverted", false) && test_dom_.value("footer_visible", false);
-                        for (const char* key : {"model_directory", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "full_width_digits", "full_width_symbols", "chinese_punctuation"})
+                        for (const char* key : {"english_dictionary_path", "english_min_letters", "english_words_first", "english_candidate_color", "dark_english_candidate_color", "model_directory", "dictionary_path", "language_model_path", "prefer_unigram_single_syllable", "user_words_exact_only", "user_words_enabled", "user_words_first", "page_size", "candidate_layout", "model_candidate_color", "user_candidate_color", "input_mode", "shuangpin_scheme", "model_enabled", "full_width", "full_width_digits", "full_width_symbols", "chinese_punctuation"})
                             valid = valid && test_dom_.at(key) == test_config_.at(key);
                         if (!valid) {
                             finish_self_test({{"ok", false}, {"error", "Settings DOM or configuration binding check failed"}, {"dom", test_dom_}});
@@ -791,7 +798,7 @@ private:
     void pick_path(const json& request) {
         const std::string field = request.value("field", "");
         const bool folder = field == "model_directory";
-        if (!folder && field != "dictionary_path" && field != "language_model_path") return;
+        if (!folder && field != "dictionary_path" && field != "language_model_path" && field != "english_dictionary_path") return;
         json result;
         ComPtr<IFileOpenDialog> dialog;
         HRESULT status = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
@@ -801,10 +808,10 @@ private:
             dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_NOCHANGEDIR |
                 (folder ? FOS_PICKFOLDERS : FOS_FILEMUSTEXIST));
             dialog->SetTitle(folder ? L"选择 Phono 模型目录" :
-                field == "language_model_path" ? L"选择 libime KenLM 语言模型" : L"选择 libime 来源词库");
+                field == "language_model_path" ? L"选择 libime KenLM 语言模型" : field == "english_dictionary_path" ? L"选择英文词典" : L"选择 libime 来源词库");
             const COMDLG_FILTERSPEC dictionary_filters[] = {{L"libime 来源词库 (*.tsv;*.txt)", L"*.tsv;*.txt"}, {L"所有文件", L"*.*"}};
             const COMDLG_FILTERSPEC language_model_filters[] = {{L"KenLM 模型 (*.lm;*.arpa)", L"*.lm;*.arpa"}, {L"所有文件", L"*.*"}};
-            if (field == "dictionary_path") dialog->SetFileTypes(2, dictionary_filters);
+            if (field == "dictionary_path" || field == "english_dictionary_path") dialog->SetFileTypes(2, dictionary_filters);
             if (field == "language_model_path") dialog->SetFileTypes(2, language_model_filters);
             const auto current = request.value("current", "");
             if (!current.empty()) {

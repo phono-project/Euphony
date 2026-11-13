@@ -8,6 +8,15 @@
 #include <vector>
 
 namespace euphony {
+class EnglishDictionary {
+public:
+    explicit EnglishDictionary(const std::filesystem::path& path);
+    std::vector<std::string> lookup(std::string_view prefix, size_t limit = 5) const;
+    size_t size() const { return words_.size(); }
+private:
+    struct Word { std::string text; uint64_t frequency; };
+    std::vector<Word> words_;
+};
 struct DictionaryCandidate {
     std::string text;
     std::string pinyin;

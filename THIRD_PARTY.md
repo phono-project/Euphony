@@ -60,3 +60,13 @@ The following material is used as reference for individual interface contracts a
 UTF-8 进程代码页只用于后台和引擎测试，使 KenLM 能读取 Unicode 路径。ManagedShell 资料只用于 Shell 兼容所需的 COM 标识、接口方法顺序和通知项字段布局；托盘与菜单由 Euphony 实现。
 
 The UTF-8 process code page is enabled only for the broker and engine tests so KenLM can open Unicode paths. ManagedShell material was consulted only for COM identifiers, interface method order, and notification-item field layout needed for Shell compatibility. Euphony implements its own tray and menus.
+
+## English word data
+
+`data/english.tsv` adapts the [dwyl English word list](https://github.com/dwyl/english-words)
+(Unlicense) and [FrequencyWords](https://github.com/hermitdave/FrequencyWords) English
+2018 frequencies by Hermit Dave (CC BY-SA 4.0), sourced from OpenSubtitles2018.
+The adaptation keeps lowercase ASCII dictionary words and adds corpus frequencies
+(0 for unobserved words). The combined data is CC BY-SA 4.0. See
+`data/README.md` for reproduction and `data/licenses/ENGLISH-WORDS-UNLICENSE.txt`
+and `data/licenses/CC-BY-SA-4.0.txt` for licenses, retained in packaged `licenses/`.

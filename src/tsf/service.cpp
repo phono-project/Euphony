@@ -158,7 +158,7 @@ bool compartment(IUnknown* owner, REFGUID id) {
     const bool result = SUCCEEDED(field->GetValue(&value)) && value.vt == VT_I4 && value.lVal != 0;
     VariantClear(&value); return result;
 }
-struct Candidate { std::wstring text; bool model{}, continues{}, user{}; std::vector<std::pair<std::wstring, bool>> pieces; };
+struct Candidate { std::wstring text; bool model{}, continues{}, user{}, english{}; std::vector<std::pair<std::wstring, bool>> pieces; };
 struct Replay { ComPtr<ITfContext> context; std::uint64_t epoch{}; WPARAM vk{}; LPARAM flags{}; };
 class Service;
 class LanguageButton final : public ITfLangBarItemButton, public ITfSource {
@@ -209,6 +209,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
     bool show_preedit_ = false;
     COLORREF model_color_ = RGB(223,242,229);
     COLORREF user_color_ = RGB(251,228,236);
+    COLORREF english_color_ = RGB(255,242,198);
     HFONT font_{};
     std::shared_ptr<Work> worker_;
     std::string session_;
@@ -492,7 +493,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         if (candidate_generation_!=list_generation) host_pages_.clear();
         candidate_generation_=list_generation;
         if (value.contains("candidates") && value["candidates"].is_array()) for (const auto& item:value["candidates"]) {
-            Candidate candidate{wide(item.value("text",std::string{})),item.value("model",false),item.value("continues",false),item.value("user",false),{}};
+            Candidate candidate{wide(item.value("text",std::string{})),item.value("model",false),item.value("continues",false),item.value("user",false),item.value("english",false),{}};
             if (item.contains("pieces")) for (const auto& piece:item["pieces"]) candidate.pieces.emplace_back(wide(piece.value("text",std::string{})),piece.value("deleted",false));
             candidates_.push_back(std::move(candidate));
         }
@@ -622,6 +623,7 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
         selected_color_=color("selected_candidate_color",dark?"#88ACF0":"#607EB9");
         model_color_=color("model_candidate_color",dark?"#204532":"#DFF2E5");
         user_color_=color("user_candidate_color",dark?"#442D50":"#FBE4EC");
+        english_color_=color("english_candidate_color",dark?"#514627":"#FFF2C6");
         text_color_=dark?RGB(240,240,240):RGB(30,34,56);
     }
     void paint() {
@@ -641,8 +643,8 @@ class Service final : public ITfTextInputProcessorEx, public ITfKeyEventSink,
             const auto cell=candidate_cells_[i-begin]; const auto saved=SaveDC(dc);
             IntersectClipRect(dc,cell.left,cell.top,cell.right,cell.bottom);
             auto y=static_cast<int>(cell.top);
-            if (candidates_[i].user || candidates_[i].model) {
-                auto brush=CreateSolidBrush(candidates_[i].user?user_color_:model_color_); FillRect(dc,&cell,brush); DeleteObject(brush);
+            if (candidates_[i].user || candidates_[i].model || candidates_[i].english) {
+                auto brush=CreateSolidBrush(candidates_[i].model?model_color_:candidates_[i].user?user_color_:english_color_); FillRect(dc,&cell,brush); DeleteObject(brush);
             }
             if (i==selection_) {
                 auto border=cell; auto brush=CreateSolidBrush(selected_color_);

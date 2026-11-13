@@ -22,6 +22,7 @@ struct Candidate {
     std::vector<CandidatePiece> pieces;
     bool user = false;
     bool preferred = false;
+    bool english = false;
     bool operator==(const Candidate&) const = default;
 };
 struct Selection { std::string source, text, pinyin; };
@@ -52,6 +53,7 @@ struct Completion { std::string session; uint64_t generation; Cancellation cance
 struct Engine::Impl {
     json config;
     std::unique_ptr<Dictionary> dictionary;
+    std::unique_ptr<EnglishDictionary> englishDictionary;
     std::shared_ptr<const LanguageModel> languageModel;
     std::unique_ptr<ShuangpinProfile> shuangpin;
     Core core;
@@ -60,7 +62,7 @@ struct Engine::Impl {
     uint64_t nextId = 1;
     std::mutex completionsMutex;
     std::deque<Completion> completions;
-    std::string dictionaryError, modelError, languageModelError;
+    std::string dictionaryError, modelError, languageModelError, englishDictionaryError;
     bool modelReady = false;
     std::filesystem::path learningFile;
     explicit Impl(json settings, Worker::Inference inference = {}) : config(std::move(settings)),
@@ -83,6 +85,10 @@ struct Engine::Impl {
                 if (dictionary) dictionary->setLanguageModel(languageModel);
             }
         } catch (const std::exception& error) { languageModelError = error.what(); }
+        try {
+            const auto path=config.value("english_dictionary_path", "");
+            if (!path.empty()) englishDictionary=std::make_unique<EnglishDictionary>(std::filesystem::path(wide(path)));
+        } catch (const std::exception& error) { englishDictionaryError=error.what(); }
         if (config.value("model_enabled", true)) {
             if (config.value("model_directory", "").empty())
                 modelError = "Set the model package directory in Euphony settings";
@@ -165,6 +171,36 @@ struct Engine::Impl {
             cancel(state,true);
         }
     }
+    void mergeCandidates(State& state, const std::vector<Candidate>& models = {}) {
+        std::vector<Candidate> before, after, english;
+        if (englishDictionary && state.cursor==state.raw.size() &&
+            state.raw.size()>=static_cast<size_t>(config.value("english_min_letters",4))) {
+            for (const auto& word:englishDictionary->lookup(state.raw))
+                english.push_back({word,word,{},false,state.raw.size(),{},false,false,true});
+        }
+        // Providers append in this order within each side of the model list.
+        // Placement is independent of the source used for duplicate provenance.
+        for (const auto& candidate:state.dictionary)
+            if (candidate.user && (candidate.consumed==state.raw.size() || utf8Tail(candidate.commit,1)!=candidate.commit))
+                (config.value("user_words_first",true) && candidate.preferred ? before : after).push_back(candidate);
+        auto& englishSide=config.value("english_words_first",true) ? before : after;
+        englishSide.insert(englishSide.end(),english.begin(),english.end());
+        std::unordered_map<std::string,Candidate> provenance;
+        for (const auto& source:config.value("candidate_source_priority",std::vector<std::string>{"model","user","english"})) {
+            if (source=="model") for (const auto& candidate:models) provenance.try_emplace(candidate.commit,candidate);
+            if (source=="user") for (const auto& candidate:state.dictionary) if (candidate.user) provenance.try_emplace(candidate.commit,candidate);
+            if (source=="english") for (const auto& candidate:english) provenance.try_emplace(candidate.commit,candidate);
+        }
+        std::unordered_set<std::string> seen;
+        state.candidates.clear();
+        auto append=[&](const std::vector<Candidate>& candidates) {
+            for (const auto& candidate:candidates) if (seen.insert(candidate.commit).second) {
+                const auto source=provenance.find(candidate.commit);
+                state.candidates.push_back(source==provenance.end() ? candidate : source->second);
+            }
+        };
+        append(before); append(models); append(after); append(state.dictionary);
+    }
     void drain() {
         std::deque<Completion> finished;
         { std::lock_guard lock(completionsMutex); finished.swap(completions); }
@@ -180,23 +216,15 @@ struct Engine::Impl {
             if (state.generation != completion.generation || state.frozen || state.sensitive || state.raw.empty()) continue;
             state.pending = false;
             state.error = completion.result.error;
-            auto previous=candidateSnapshot(state);state.candidates.clear();
-            std::unordered_set<std::string> seen;
-            for (const auto& candidate : state.dictionary)
-                if (config.value("user_words_first", true) && candidate.user && candidate.preferred && seen.insert(candidate.commit).second)
-                    state.candidates.push_back(candidate);
+            auto previous=candidateSnapshot(state);
+            std::vector<Candidate> models;
             for (const auto& decoded : completion.result.candidates) {
                 auto presentation = presentCandidate(decoded, completion.result.invalid,
                     config.value("invalid_input", "pass") == "delete" ? InvalidInputPolicy::Delete : InvalidInputPolicy::PassThrough);
-                if (!seen.insert(presentation.committed).second) continue;
                 std::string text; for (const auto& piece : presentation.pieces) text += piece.text;
-                state.candidates.push_back({text, presentation.committed, {}, true, state.raw.size(), std::move(presentation.pieces)});
+                models.push_back({text, presentation.committed, {}, true, state.raw.size(), std::move(presentation.pieces)});
             }
-            for (const auto& candidate : state.dictionary)
-                if (candidate.user && (candidate.consumed == state.raw.size() || utf8Tail(candidate.commit,1) != candidate.commit) &&
-                    seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
-            for (const auto& candidate : state.dictionary)
-                if (seen.insert(candidate.commit).second) state.candidates.push_back(candidate);
+            mergeCandidates(state,models);
             state.candidateSource = !state.candidates.empty() && state.candidates.front().model ? "phono" : "dictionary";
             state.selection = 0;
             candidateIdentity(state,previous);
@@ -348,7 +376,7 @@ struct Engine::Impl {
                 config.value("invalid_input", "pass") == "delete" ? InvalidInputPolicy::Delete : InvalidInputPolicy::PassThrough);
             state.dictionary.push_back({state.raw,presentation.committed,{},false,state.raw.size(),std::move(presentation.pieces)});
         }
-        state.candidates = state.dictionary;
+        mergeCandidates(state);
         state.candidateSource = unigramOnly ? "unigram" : "dictionary";
         candidateIdentity(state,previous);
         if (!dictionaryError.empty()) state.error = dictionaryError;
@@ -393,7 +421,7 @@ struct Engine::Impl {
         if (index >= state.candidates.size()) return false;
         const auto candidate = state.candidates[index];
         cancel(state);
-        if (candidate.model) { commit(state, output, state.selectedText() + candidate.commit); return true; }
+        if (candidate.model || candidate.english) { commit(state, output, state.selectedText() + candidate.commit); return true; }
         const auto consumed = std::min(candidate.consumed, state.raw.size());
         if (!consumed) return false;
         state.selected.push_back({state.raw.substr(0, consumed),candidate.commit,candidate.pinyin});
@@ -557,7 +585,7 @@ struct Engine::Impl {
             json pieces = json::array();
             for (const auto& piece : candidate.pieces) pieces.push_back({{"text",piece.text},{"deleted",piece.deleted}});
             candidates.push_back({{"text",candidate.text},{"commit",prefix+candidate.commit},{"model",candidate.model},
-                {"user",candidate.user},
+                {"user",candidate.user},{"english",candidate.english},
                 {"continues",!candidate.model && candidate.consumed < state.raw.size()},{"pieces",std::move(pieces)}});
         }
         return {{"version",1},{"session",session},{"seq",seq},{"eaten",eaten},{"preedit",prefix+state.raw},
@@ -571,6 +599,8 @@ struct Engine::Impl {
             {"dark_selected_candidate_color",config.value("dark_selected_candidate_color","#88ACF0")},
             {"dark_model_candidate_color",config.value("dark_model_candidate_color","#204532")},
             {"dark_user_candidate_color",config.value("dark_user_candidate_color","#442D50")},
+            {"english_candidate_color",config.value("english_candidate_color","#FFF2C6")},
+            {"dark_english_candidate_color",config.value("dark_english_candidate_color","#514627")},
             {"show_preedit",config.value("show_preedit",false)},
             {"candidate_layout",config.value("candidate_layout", "vertical")},
             {"model_candidate_color",config.value("model_candidate_color", "#DFF2E5")},
@@ -591,6 +621,8 @@ json Engine::handle(const json& request) {
         return {{"version",1},{"model_ready",impl.modelReady},{"dictionary_ready",bool(impl.dictionary)},
             {"model_error",impl.modelError},{"dictionary_error",impl.dictionaryError},
             {"language_model_ready",bool(impl.languageModel)},{"language_model_error",impl.languageModelError},
+            {"english_dictionary_ready",bool(impl.englishDictionary)},{"english_dictionary_error",impl.englishDictionaryError},
+            {"english_dictionary_entries",impl.englishDictionary ? impl.englishDictionary->size() : 0},
             {"language_model_order",impl.languageModel ? impl.languageModel->order() : 0},
             {"dictionary_entries",impl.dictionary ? impl.dictionary->size() : 0}};
     const auto session = request.value("session", "");

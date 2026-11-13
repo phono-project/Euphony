@@ -21,7 +21,7 @@ def package():
     for arch in ("x64", "x86"):
         run(sys.executable, "tools/build.py", "package", "--arch", arch, "--install-dir", str(stage))
     required = ("EuphonyBroker.exe", "EuphonySettings.exe", "EuphonyTsf.dll", "x86/EuphonyTsf.dll",
-        "phono_core.dll", "WebView2Loader.dll", "settings.html", "data/libime.tsv", "data/zh_CN.lm",
+        "phono_core.dll", "WebView2Loader.dll", "settings.html", "data/libime.tsv", "data/english.tsv", "data/zh_CN.lm",
         "tools/manage.ps1", "tools/register.ps1", "tools/unregister.ps1", "tools/version.ps1", "VERSION")
     for name in required:
         if not (stage / name).is_file():

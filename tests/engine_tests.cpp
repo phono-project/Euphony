@@ -268,14 +268,14 @@ int main() {
             check(restored.frequency("ni'hao'ma","倪好嘛")==2,"whole phrase count persists");
             memoryConfig["model_enabled"]=true;memoryConfig["model_directory"]=temp.string();
             {
-                Engine engine(memoryConfig,[](const Request&) {Result result;result.ready=true;result.candidates={"你好嘛","倪好嘛"};return result;});
+                Engine engine(memoryConfig,[](const Request&) {Result result;result.ready=true;result.candidates={"你好嘛"};return result;});
                 Client client{engine,"memory-model"};auto answer=client.type("nihaoma");
                 const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
                 while(answer["pending"]==true && std::chrono::steady_clock::now()<deadline) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));answer=client.request("poll");
                 }
                 check(answer["pending"]==false,"memory model fixture completes");
-                check(answer["candidates"][0]["user"]==true && answer["candidates"][0]["model"]==false,"memory leads and wins duplicate model identity");
+                check(answer["candidates"][0]["user"]==true && answer["candidates"][0]["model"]==false,"memory leads distinct model result");
                 answer=client.request("key","Delete",{{"candidate_generation",answer["candidate_generation"]}});
                 check(answer["preedit"]=="nihaoma" && answer["commit"]=="","forget preserves input");
                 for(const auto& c:answer["candidates"])check(c["user"]==false,"forget immediately removes memory priority");
@@ -449,6 +449,54 @@ int main() {
             client.request("key","h",{{"context_disabled",true}});
             for(int i=0;i<100;++i) { auto answer=client.request("poll",{},{{"context_disabled",true}}); if(!answer["pending"].get<bool>())break; std::this_thread::sleep_for(std::chrono::milliseconds(2)); }
             check(!leaked.load(),"console ignores surrounding text and committed history");
+        }
+        {
+            auto englishFile=temp/"english.tsv";
+            {std::ofstream out(englishFile);out<<"nihaoma\t30\nnihao\t10\nnihc\t3\nhello\t5\nhelloworld\t20\n";}
+            EnglishDictionary words(englishFile);
+            check(words.lookup("hello")[0]=="hello","exact English word beats more frequent completion");
+            check(words.lookup("hell")[0]=="helloworld","English completions use word frequency");
+            check(words.lookup("hello'").empty() && words.lookup("zzzz").empty(),"English ignores separators and absent prefixes");
+            EnglishDictionary bundled(std::filesystem::path(EUPHONY_TEST_DATA_DIR)/"english.tsv");
+            check(bundled.size()>=370000 && bundled.lookup("euphony")[0]=="euphony","bundled English dictionary includes broad vocabulary");
+            auto directory=temp/"english-learning";std::filesystem::create_directories(directory);
+            Dictionary personal(fixture);personal.learn("ni'hao","倪好");personal.saveLearning(directory/"learning.json");
+            auto wait=[](Client& client,json answer) {
+                for(int i=0;i<1000 && answer["pending"].get<bool>();++i) {std::this_thread::sleep_for(std::chrono::milliseconds(1));answer=client.request("poll");}
+                check(!answer["pending"].get<bool>(),"English ranking inference completed");return answer;
+            };
+            for(bool userFirst:{false,true}) for(bool englishFirst:{false,true}) {
+                auto settings=config;settings["model_enabled"]=true;settings["model_directory"]=temp.string();
+                settings["user_directory"]=directory.string();settings["learning"]=false;
+                settings["english_dictionary_path"]=englishFile.string();settings["user_words_first"]=userFirst;settings["english_words_first"]=englishFirst;
+                Engine engine(settings,[](const Request&){Result result;result.ready=true;result.candidates={"模型词","模型二"};return result;});
+                Client client{engine,"placement"};auto answer=wait(client,client.type("nihao"));
+                std::vector<std::string> expected;
+                if(userFirst)expected.push_back("倪好");
+                if(englishFirst){expected.push_back("nihao");expected.push_back("nihaoma");}
+                expected.push_back("模型词");expected.push_back("模型二");
+                if(!userFirst)expected.push_back("倪好");
+                if(!englishFirst){expected.push_back("nihao");expected.push_back("nihaoma");}
+                for(size_t i=0;i<expected.size();++i)check(answer["candidates"][i]["text"]==expected[i],"before/after lists preserve user then English provider order");
+                auto index=std::find_if(answer["candidates"].begin(),answer["candidates"].end(),[](const auto& c){return c["text"]=="nihao";})-answer["candidates"].begin();
+                check(answer["candidates"][index]["english"]==true,"English provenance is exposed for highlighting");
+                check(client.request("key","Select",{{"index",index},{"candidate_generation",answer["candidate_generation"]}})["commit"]=="nihao","English commits the word directly");
+            }
+            auto settings=config;settings["model_enabled"]=true;settings["model_directory"]=temp.string();settings["user_directory"]=directory.string();settings["learning"]=false;
+            settings["english_dictionary_path"]=englishFile.string();settings["english_min_letters"]=5;
+            Engine engine(settings,[](const Request&){Result result;result.ready=true;result.candidates={"倪好","nihao"};return result;});
+            Client client{engine,"provenance"};auto answer=wait(client,client.type("niha"));
+            for(const auto& candidate:answer["candidates"])check(candidate["english"]==false,"English minimum length is configurable");
+            answer=wait(client,client.type("o"));
+            check(answer["candidates"][0]["text"]=="倪好" && answer["candidates"][0]["model"]==true && answer["candidates"][0]["user"]==false,"model wins duplicate user provenance");
+            check(answer["candidates"][1]["text"]=="nihao" && answer["candidates"][1]["model"]==true && answer["candidates"][1]["english"]==false,"model wins duplicate English provenance");
+            settings["candidate_source_priority"]={"english","user","model"};
+            Engine custom(settings,[](const Request&){Result result;result.ready=true;result.candidates={"倪好","nihao"};return result;});
+            Client customClient{custom,"custom-priority"};auto customAnswer=wait(customClient,customClient.type("nihao"));
+            check(customAnswer["candidates"][0]["user"]==true && customAnswer["candidates"][1]["english"]==true,"hidden source priority controls duplicate provenance");
+            settings["model_enabled"]=false;settings["input_mode"]="shuangpin";settings["english_min_letters"]=4;
+            Engine pairs(settings);Client pair{pairs,"english-pairs"};answer=pair.type("nihc");
+            check(answer["candidates"][0]["text"]=="倪好" && answer["candidates"][1]["text"]=="nihc","shuangpin English matches original letters");
         }
         auto presentation=presentCandidate("你好",{{2,3,1,"!"}},InvalidInputPolicy::Delete);
         check(presentation.committed=="你好" && presentation.pieces[1].deleted,"invalid text uses struck-out presentation");

@@ -34,3 +34,26 @@ The dictionary uses LGPL-2.1-or-later, copyright 2002–2005 Yuking `<yuking_net
 七组双拼键位数组来自 libime 的 [shuangpindata.h](https://github.com/fcitx/libime/blob/master/src/libime/pinyin/shuangpindata.h)，使用 LGPL-2.1-or-later，copyright 2011–2020 CSSlayer。worker、core C ABI 调度、非法输入展示和固定两键转换语义改编自 [phono-fcitx5-addon](https://github.com/phono-project/phono-fcitx5-addon)，Apache-2.0 许可证保留在 `licenses/PHONO-ADDON-APACHE-2.0.txt`。其余依赖声明见 [THIRD_PARTY.md](../THIRD_PARTY.md)。
 
 Seven Shuangpin key arrays come from libime’s [shuangpindata.h](https://github.com/fcitx/libime/blob/master/src/libime/pinyin/shuangpindata.h), under LGPL-2.1-or-later, copyright 2011–2020 CSSlayer. Worker behavior, core C ABI orchestration, invalid-input presentation, and fixed-pair conversion semantics are adapted from [phono-fcitx5-addon](https://github.com/phono-project/phono-fcitx5-addon), with its Apache-2.0 license retained in `licenses/PHONO-ADDON-APACHE-2.0.txt`. See [THIRD_PARTY.md](../THIRD_PARTY.md) for other dependency notices.
+
+## English dictionary
+
+`english.tsv` contains 370,105 lowercase ASCII words from
+[dwyl/english-words](https://github.com/dwyl/english-words/blob/master/words_alpha.txt)
+(Unlicense), with observed frequencies from Hermit Dave's
+[FrequencyWords English 2018 list](https://github.com/hermitdave/FrequencyWords/blob/master/content/2018/en/en_full.txt)
+(CC BY-SA 4.0), derived from [OpenSubtitles2018](https://opus.nlpl.eu/OpenSubtitles/v2018/).
+Words absent from the frequency corpus retain frequency 0. The adaptation filters
+frequencies to the dictionary vocabulary and writes `word<TAB>frequency` rows in
+alphabetical order. Retrieved 2026-11-13. Reproduce with
+`python tools/import_english.py`; no additional Python packages are required.
+The combined data is distributed under CC BY-SA 4.0; license texts are in
+`data/licenses/ENGLISH-WORDS-UNLICENSE.txt` and `data/licenses/CC-BY-SA-4.0.txt`.
+
+English matching uses the original ASCII input in both pinyin and shuangpin modes.
+The default minimum is 4 letters. Exact words rank ahead of prefix completions;
+completions rank by frequency. Up to 5 English candidates are included.
+The default dictionary settings are collapsed in the settings window.
+User and English providers append to lists before or after model candidates,
+with user words appended first on each side. Both default to before the model.
+Duplicate provenance follows the hidden `candidate_source_priority` setting
+(default `["model", "user", "english"]`), independently of list placement.
